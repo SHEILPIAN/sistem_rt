@@ -22,6 +22,9 @@ $data = mysqli_fetch_assoc($query);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Surat Kematian - <?= $data['nama_almarhum']; ?></title>
     
+    <!-- Ikon FontAwesome untuk Loading & Tombol -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <!-- Library untuk mengubah HTML ke PDF Otomatis -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
@@ -39,10 +42,9 @@ $data = mysqli_fetch_assoc($query);
             min-height: 297mm;
             padding: 20mm;
             box-sizing: border-box;
-            margin: 0 auto; /* Supaya rapi di tengah */
+            margin: 0 auto;
         }
         /* Desain Isi Surat */
-        .kop { text-align: center; font-size: 14pt; font-weight: bold; line-height: 1.2; }
         .garis { border-bottom: 3px solid black; margin-top: 10px; margin-bottom: 20px; }
         .judul { text-align: center; font-size: 14pt; font-weight: bold; text-decoration: underline; margin-bottom: 5px; }
         .nomor { text-align: center; font-size: 12pt; margin-bottom: 30px; }
@@ -70,12 +72,25 @@ $data = mysqli_fetch_assoc($query);
 
     <!-- Area Kertas yang akan dicetak ke PDF -->
     <div id="area-cetak" class="kertas">
-        <!-- KOP SURAT -->
-        <div class="kop">
-            PEMERINTAH KABUPATEN BEKASI<br>
-            KECAMATAN ... / KELURAHAN ...<br>
-            PENGURUS RT 31 RW 09/1 GRAHA KALIMAS
-        </div>
+        
+        <!-- KOP SURAT DENGAN LOGO -->
+        <table style="width: 100%; margin-bottom: 5px; border: none;">
+            <tr>
+                <!-- Bagian Logo Kiri -->
+                <td style="width: 15%; text-align: center; vertical-align: middle; padding: 0;">
+                    <!-- Pastikan nama file gambar logo benar, di sini menggunakan image.jpeg -->
+                    <img src="image.jpeg" style="width: 85px; height: auto;">
+                </td>
+                
+                <!-- Bagian Teks Tengah -->
+                <td style="width: 85%; text-align: center; vertical-align: middle; padding: 0; padding-right: 15%;">
+                    <div style="font-size: 15pt; font-weight: bold; line-height: 1.2; font-family: 'Times New Roman', Times, serif;">
+                      
+                        PENGURUS RT 31 RW 09/1 GRAHA KALIMAS
+                    </div>
+                </td>
+            </tr>
+        </table>
         <div class="garis"></div>
 
         <!-- JUDUL SURAT -->
@@ -133,12 +148,12 @@ $data = mysqli_fetch_assoc($query);
 
             // Jalankan proses ubah ke PDF lalu download
             html2pdf().set(opt).from(element).save().then(function() {
-                // Tampilkan tombol tutup setelah berhasil
+                // Tampilkan tombol KEMBALI setelah berhasil
                 document.getElementById('loading').innerHTML = `
                     <p style="color: green;"><b><i class="fa-solid fa-check"></i> PDF Berhasil Diunduh!</b></p>
-                    <button onclick="window.close()" style="margin-top: 15px; background: #dc2626; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;">
-                        Tutup Halaman Ini
-                    </button>
+                    <a href="kematian.php" style="display: inline-block; margin-top: 15px; background: #1e3a8a; color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <i class="fa-solid fa-arrow-left"></i> Kembali ke Data Kematian
+                    </a>
                 `;
             });
         };
