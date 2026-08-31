@@ -2,10 +2,11 @@
 // Mengaktifkan session untuk fitur login
 session_start(); 
 
-$host = "localhost"; 
+$host = "trolley.proxy.rlwy.net"; 
 $user = "root"; 
-$pass = ""; 
-$db = "db_sistem_rt"; 
+$pass = "LnxeTAZtJLuuKhfgwekDgjHJZJHDCxGe"; 
+$db = "railway";
+$port = "49923";
 
 $conn = mysqli_connect($host, $user, $pass, $db); 
 
