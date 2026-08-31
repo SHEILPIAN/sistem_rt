@@ -21,9 +21,9 @@ $total_pria = mysqli_num_rows($q_pria);
 $q_wanita = mysqli_query($conn, "SELECT id FROM warga WHERE jenis_kelamin = 'P'");
 $total_wanita = mysqli_num_rows($q_wanita);
 
-// 2. Hitung Kategori Umur
-// Balita (1 - 5 Tahun)
-$q_balita = mysqli_query($conn, "SELECT id FROM warga WHERE TIMESTAMPDIFF(YEAR, tanggal_lahir, CURDATE()) BETWEEN 1 AND 5");
+// 2. Hitung Kategori Umur (SINKRONISASI DIPERBAIKI)
+// Balita (0 - 5 Tahun) -> Angka 0 dimasukkan agar bayi hitungan bulan ikut terhitung
+$q_balita = mysqli_query($conn, "SELECT id FROM warga WHERE TIMESTAMPDIFF(YEAR, tanggal_lahir, CURDATE()) BETWEEN 0 AND 5");
 $total_balita = mysqli_num_rows($q_balita);
 
 // Anak-anak (6 - 11 Tahun)
@@ -58,7 +58,7 @@ $total_remaja = mysqli_num_rows($q_remaja);
                     <!-- Bagian Kiri: Logo dan Judul -->
                     <div class="flex items-center space-x-3">
                         <!-- Menampilkan Logo RT -->
-                        <img src="image01.jpeg.png" alt="Logo RT 31" class="w-12 h-12 rounded-full object-cover border-1 border-white shadow-sm bg-white shrink-0">
+                        <img src="image.jpeg" alt="Logo RT 31" class="w-12 h-12 rounded-full object-cover border-1 border-white shadow-sm bg-white shrink-0">
                         
                         <!-- Teks Judul -->
                         <div>
@@ -173,13 +173,13 @@ $total_remaja = mysqli_num_rows($q_remaja);
                                     <span class="flex items-center gap-1"><i class="fa-solid fa-venus text-pink-300"></i> Wnt: <?php echo $total_wanita; ?></span>
                                 </div>
                                 
-                                <!-- Rincian Kategori Umur -->
+                                <!-- Rincian Kategori Umur Anak -->
                                 <div class="flex items-center justify-between text-[8px] bg-blue-700 bg-opacity-40 w-full px-1.5 py-1 rounded-md border border-blue-500">
-                                    <span title="1-5 Tahun">Balita: <b><?php echo $total_balita; ?></b></span>
+                                    <span title="Usia 0-5 Tahun">Balita: <b><?php echo $total_balita; ?></b></span>
                                     <span class="w-px h-2.5 bg-blue-400"></span>
-                                    <span title="6-11 Tahun">Anak: <b><?php echo $total_anak; ?></b></span>
+                                    <span title="Usia 6-11 Tahun">Anak: <b><?php echo $total_anak; ?></b></span>
                                     <span class="w-px h-2.5 bg-blue-400"></span>
-                                    <span title="12-17 Tahun">Remaja: <b><?php echo $total_remaja; ?></b></span>
+                                    <span title="Usia 12-17 Tahun">Remaja: <b><?php echo $total_remaja; ?></b></span>
                                 </div>
                             </div>
                         </div>
