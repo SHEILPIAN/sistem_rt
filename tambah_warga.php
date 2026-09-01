@@ -35,6 +35,10 @@ if (isset($_POST['simpan'])) {
     $path_kk = "uploads/" . $kk_baru;
 
     // Pindahkan file dari penyimpanan sementara ke folder uploads
+    if (!is_dir('uploads')) {
+        mkdir('uploads', 0777, true);
+    }
+    
     if(move_uploaded_file($tmp_ktp, $path_ktp) && move_uploaded_file($tmp_kk, $path_kk)) {
         
         // Simpan ke database jika upload berhasil (Query diupdate untuk memasukkan tanggal_lahir)
