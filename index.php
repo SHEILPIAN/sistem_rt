@@ -150,6 +150,13 @@ $total_remaja = mysqli_num_rows($q_remaja);
                     <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shadow-sm text-lg group-hover:bg-blue-600 group-hover:text-white transition"><i class="fa-solid fa-id-card"></i></div>
                     <span class="text-xs text-gray-700 font-medium">Profil Saya</span>
                 </a>
+                <!-- Manajemen User -->
+                <?php if(isset($_SESSION['role']) && $_SESSION['role'] == 'superadmin'): ?>
+                <a href="users.php" class="flex flex-col items-center space-y-1 group">
+                    <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shadow-sm text-lg group-hover:bg-blue-600 group-hover:text-white transition"><i class="fa-solid fa-user-shield"></i></div>
+                    <span class="text-xs text-gray-700 font-medium">Data User</span>
+                </a>
+                <?php endif; ?>
             </div>
 
             <!-- Rekap Ringkasan RT -->
