@@ -3,17 +3,22 @@ include 'config.php';
 
 // Proses Simpan Data
 if (isset($_POST['simpan'])) {
-    $nama = $_POST['nama_pemohon'];
-    $nik = $_POST['nik_pemohon'];
-    $jenis = $_POST['jenis_surat'];
-    $keperluan = $_POST['keperluan'];
+    $nama = mysqli_real_escape_string($conn, $_POST['nama_pemohon']);
+    $nik = mysqli_real_escape_string($conn, $_POST['nik_pemohon']);
+    $jenis = mysqli_real_escape_string($conn, $_POST['jenis_surat']);
+    $keperluan = mysqli_real_escape_string($conn, $_POST['keperluan']);
     
-    $insert = mysqli_query($conn, "INSERT INTO surat (nama_pemohon, nik_pemohon, jenis_surat, keperluan) VALUES ('$nama', '$nik', '$jenis', '$keperluan')");
+    try {
+        $insert = mysqli_query($conn, "INSERT INTO surat (nama_pemohon, nik_pemohon, jenis_surat, keperluan) VALUES ('$nama', '$nik', '$jenis', '$keperluan')");
 
-    if ($insert) {
-        echo "<script>alert('Pengajuan Surat Berhasil Dikirim! Silakan tunggu konfirmasi RT.'); window.location='surat.php';</script>";
-    } else {
-        echo "<script>alert('Gagal mengirim pengajuan surat!');</script>";
+        if ($insert) {
+            echo "<script>alert('Pengajuan Surat Berhasil Dikirim! Silakan tunggu konfirmasi RT.'); window.location='surat.php';</script>";
+        } else {
+            echo "<script>alert('Gagal mengirim pengajuan surat!');</script>";
+        }
+    } catch (Exception $e) {
+        $err = addslashes($e->getMessage());
+        echo "<script>alert('Error: $err');</script>";
     }
 }
 ?>
