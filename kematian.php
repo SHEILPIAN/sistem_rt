@@ -23,9 +23,11 @@ $query = mysqli_query($conn, "SELECT * FROM kematian ORDER BY tanggal_wafat DESC
 
         <!-- Tombol Tambah -->
         <div class="p-4">
+            <?php if(in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])): ?>
             <a href="tambah_kematian.php" class="w-full bg-slate-700 hover:bg-slate-800 text-white font-bold py-3 rounded-xl flex justify-center items-center gap-2 shadow-md transition">
                 <i class="fa-solid fa-plus"></i> Tambah Data Kematian
             </a>
+            <?php endif; ?>
         </div>
 
         <!-- List Data Kematian -->

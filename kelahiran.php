@@ -23,9 +23,11 @@ $query = mysqli_query($conn, "SELECT * FROM kelahiran ORDER BY tanggal_lahir DES
 
         <!-- Tombol Tambah -->
         <div class="p-4">
+            <?php if(in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])): ?>
             <a href="tambah_kelahiran.php" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 rounded-xl flex justify-center items-center gap-2 shadow-md transition">
                 <i class="fa-solid fa-baby"></i> Tambah Data Kelahiran
             </a>
+            <?php endif; ?>
         </div>
 
         <!-- List Data Kelahiran -->

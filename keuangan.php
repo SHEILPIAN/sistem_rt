@@ -55,9 +55,11 @@ $query = mysqli_query($conn, "SELECT * FROM keuangan ORDER BY tanggal DESC, id D
 
         <!-- Tombol Tambah Transaksi -->
         <div class="px-4 pb-2">
+            <?php if(in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])): ?>
             <a href="tambah_keuangan.php" class="w-full bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 font-bold py-3 rounded-xl flex justify-center items-center gap-2 shadow-sm transition">
                 <i class="fa-solid fa-plus"></i> Catat Transaksi
             </a>
+            <?php endif; ?>
         </div>
 
         <!-- List Data Keuangan -->

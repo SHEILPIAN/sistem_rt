@@ -7,6 +7,13 @@ if (!isset($_SESSION['status_login']) || $_SESSION['status_login'] !== true) {
     exit;
 }
 
+// Tolak warga
+if ($_SESSION['role'] == 'warga') {
+    echo "<script>alert('Akses Ditolak!'); window.location='index.php';</script>";
+    exit;
+}
+
+
 // Hanya ketua rt yang bisa menghapus user
 if ($_SESSION['role'] !== 'ketua rt') {
     echo "<script>alert('Akses Ditolak! Hanya Ketua RT yang bisa menghapus data user.'); window.location='users.php';</script>";

@@ -23,9 +23,11 @@ $query = mysqli_query($conn, "SELECT * FROM surat ORDER BY tanggal_request DESC"
 
         <!-- Tombol Tambah Request Surat -->
         <div class="p-4">
+            <?php if(in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])): ?>
             <a href="tambah_surat.php" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl flex justify-center items-center gap-2 shadow-md transition">
                 <i class="fa-solid fa-envelope-open-text"></i> Ajukan Surat Pengantar
             </a>
+            <?php endif; ?>
         </div>
 
         <!-- List Data Surat -->

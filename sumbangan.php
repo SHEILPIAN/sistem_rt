@@ -23,9 +23,11 @@ $query = mysqli_query($conn, "SELECT * FROM sumbangan ORDER BY tanggal DESC, id 
 
         <!-- Tombol Tambah -->
         <div class="p-4">
+            <?php if(in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])): ?>
             <a href="tambah_sumbangan.php" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 rounded-xl flex justify-center items-center gap-2 shadow-md transition">
                 <i class="fa-solid fa-gift"></i> Catat Sumbangan Baru
             </a>
+            <?php endif; ?>
         </div>
 
         <!-- List Data Sumbangan -->

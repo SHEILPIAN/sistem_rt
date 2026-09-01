@@ -101,6 +101,7 @@ $total_remaja = mysqli_num_rows($q_remaja);
                     <span class="text-xs text-gray-700 font-medium">Warga</span>
                 </a>
                 <!-- Kelahiran -->
+                <?php if($_SESSION['role'] != 'warga'): ?>
                 <a href="kelahiran.php" class="flex flex-col items-center space-y-1 group">
                     <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shadow-sm text-lg group-hover:bg-blue-600 group-hover:text-white transition"><i class="fa-solid fa-venus-mars"></i></div>
                     <span class="text-xs text-gray-700 font-medium">Kelahiran</span>
@@ -120,16 +121,19 @@ $total_remaja = mysqli_num_rows($q_remaja);
                     <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shadow-sm text-lg group-hover:bg-blue-600 group-hover:text-white transition"><i class="fa-solid fa-right-from-bracket"></i></div>
                     <span class="text-xs text-gray-700 font-medium">Pindah Keluar</span>
                 </a>
+                <?php endif; ?>
                 <!-- Aduan -->
                 <a href="aduan.php" class="flex flex-col items-center space-y-1 group">
                     <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shadow-sm text-lg group-hover:bg-blue-600 group-hover:text-white transition"><i class="fa-solid fa-comments"></i></div>
                     <span class="text-xs text-gray-700 font-medium">Aduan</span>
                 </a>
                 <!-- Surat -->
+                <?php if($_SESSION['role'] != 'warga'): ?>
                 <a href="surat.php" class="flex flex-col items-center space-y-1 group">
                     <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shadow-sm text-lg group-hover:bg-blue-600 group-hover:text-white transition"><i class="fa-solid fa-file-lines"></i></div>
                     <span class="text-xs text-gray-700 font-medium">Surat</span>
                 </a>
+                <?php endif; ?>
                 <!-- Keuangan -->
                 <a href="keuangan.php" class="flex flex-col items-center space-y-1 group">
                     <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shadow-sm text-lg group-hover:bg-blue-600 group-hover:text-white transition"><i class="fa-solid fa-wallet"></i></div>
