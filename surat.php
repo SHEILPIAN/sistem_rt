@@ -64,6 +64,10 @@ if ($_SESSION['role'] == 'warga') {
                         <a href="update_surat.php?id=<?= $row['id']; ?>&status=Selesai" onclick="return confirm('Tandai pengajuan ini sebagai Selesai?')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md text-[10px] font-bold shadow-sm transition flex items-center gap-1"><i class="fa-solid fa-check"></i> Selesai</a>
                         <a href="update_surat.php?id=<?= $row['id']; ?>&status=Ditolak" onclick="return confirm('Tolak pengajuan surat ini?')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md text-[10px] font-bold shadow-sm transition flex items-center gap-1"><i class="fa-solid fa-xmark"></i> Tolak</a>
                     </div>
+                    <?php elseif($row['status_surat'] == 'Selesai'): ?>
+                    <div class="flex gap-2 mt-2">
+                        <a href="export_surat.php?id=<?= $row['id']; ?>" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-[10px] font-bold shadow-sm transition flex items-center gap-1"><i class="fa-solid fa-print"></i> Cetak Surat PDF</a>
+                    </div>
                     <?php else: ?>
                     <div></div>
                     <?php endif; ?>
