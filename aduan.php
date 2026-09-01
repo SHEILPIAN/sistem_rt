@@ -51,6 +51,11 @@ $query = mysqli_query($conn, "SELECT * FROM pengaduan ORDER BY tanggal DESC") or
                 <div class="bg-gray-50 p-3 rounded-lg border border-gray-100 mt-2">
                     <p class="text-sm text-gray-700">"<?= $row['isi_aduan']; ?>"</p>
                 </div>
+                <?php if(in_array($_SESSION['role'], ['ketua rt', 'sekretaris']) && $row['status_aduan'] == 'Proses'): ?>
+                <div class="mt-3 flex justify-end">
+                    <a href="update_aduan.php?id=<?= $row['id']; ?>&status=Selesai" onclick="return confirm('Tandai aduan ini sudah diselesaikan?')" class="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-md text-xs font-bold shadow-sm transition flex items-center gap-1"><i class="fa-solid fa-check-double"></i> Selesaikan Aduan</a>
+                </div>
+                <?php endif; ?>
             </div>
             <?php endwhile; ?>
             

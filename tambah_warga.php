@@ -51,7 +51,9 @@ if (isset($_POST['simpan'])) {
         }
 
     } else {
-        echo "<script>alert('Gagal mengunggah foto KTP atau KK! Pastikan folder uploads sudah dibuat.');</script>";
+        $error_ktp = $_FILES['foto_ktp']['error'] ?? 'Unknown';
+        $error_kk = $_FILES['foto_kk']['error'] ?? 'Unknown';
+        echo "<script>alert('Gagal mengunggah foto KTP atau KK! (Kode Error KTP: $error_ktp, KK: $error_kk)');</script>";
     }
 }
 ?>
