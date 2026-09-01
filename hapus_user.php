@@ -7,9 +7,9 @@ if (!isset($_SESSION['status_login']) || $_SESSION['status_login'] !== true) {
     exit;
 }
 
-// Hanya superadmin yang bisa menghapus user
-if ($_SESSION['role'] !== 'superadmin') {
-    echo "<script>alert('Akses Ditolak! Hanya Superadmin yang bisa menghapus data user.'); window.location='users.php';</script>";
+// Hanya ketua rt yang bisa menghapus user
+if ($_SESSION['role'] !== 'ketua rt') {
+    echo "<script>alert('Akses Ditolak! Hanya Ketua RT yang bisa menghapus data user.'); window.location='users.php';</script>";
     exit;
 }
 

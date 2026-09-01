@@ -2,7 +2,7 @@
 include 'config.php';
 
 // Pastikan hanya admin yang bisa mendownload laporan
-if (!isset($_SESSION['status_login']) || $_SESSION['role'] != 'admin') {
+if (!isset($_SESSION['status_login']) || !in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])) {
     header("Location: login.php");
     exit;
 }

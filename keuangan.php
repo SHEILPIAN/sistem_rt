@@ -67,7 +67,7 @@ $query = mysqli_query($conn, "SELECT * FROM keuangan ORDER BY tanggal DESC, id D
                 <h3 class="font-bold text-sm text-gray-700">Riwayat Transaksi</h3>
                 
                 <!-- Tombol Export Excel (Hanya untuk Admin) -->
-                <?php if(isset($_SESSION['role']) && $_SESSION['role'] == 'admin'): ?>
+                <?php if(isset($_SESSION['role']) && in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])): ?>
                 <a href="export_keuangan.php" class="bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold py-1.5 px-3 rounded-lg shadow-sm flex items-center gap-1 transition">
                     <i class="fa-solid fa-file-excel"></i> Export Laporan
                 </a>

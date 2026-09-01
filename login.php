@@ -71,9 +71,29 @@ if (isset($_POST['login'])) {
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <i class="fa-solid fa-lock text-gray-400"></i>
                         </div>
-                        <input type="password" name="password" required placeholder="Masukkan password..." class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-900 focus:border-blue-900 text-sm outline-none transition">
+                        <input type="password" id="password" name="password" required placeholder="Masukkan password..." class="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-900 focus:border-blue-900 text-sm outline-none transition">
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer" onclick="togglePassword()">
+                            <i class="fa-solid fa-eye-slash text-gray-400 hover:text-gray-600 transition" id="toggleIcon"></i>
+                        </div>
                     </div>
                 </div>
+
+                <script>
+                function togglePassword() {
+                    const passwordInput = document.getElementById('password');
+                    const toggleIcon = document.getElementById('toggleIcon');
+                    
+                    if (passwordInput.type === 'password') {
+                        passwordInput.type = 'text';
+                        toggleIcon.classList.remove('fa-eye-slash');
+                        toggleIcon.classList.add('fa-eye');
+                    } else {
+                        passwordInput.type = 'password';
+                        toggleIcon.classList.remove('fa-eye');
+                        toggleIcon.classList.add('fa-eye-slash');
+                    }
+                }
+                </script>
 
                 <div class="pt-2">
                     <button type="submit" name="login" class="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-3 rounded-xl shadow-md transition duration-300">

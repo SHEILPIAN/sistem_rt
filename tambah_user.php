@@ -7,9 +7,9 @@ if (!isset($_SESSION['status_login']) || $_SESSION['status_login'] !== true) {
     exit;
 }
 
-// Tolak akses jika yang masuk bukan superadmin
-if ($_SESSION['role'] != 'superadmin') {
-    echo "<script>alert('Akses Ditolak! Hanya Superadmin yang bisa menambah user.'); window.location='index.php';</script>";
+// Tolak akses jika yang masuk bukan ketua rt
+if ($_SESSION['role'] != 'ketua rt') {
+    echo "<script>alert('Akses Ditolak! Hanya Ketua RT (Superadmin) yang bisa menambah user.'); window.location='index.php';</script>";
     exit;
 }
 
@@ -72,10 +72,9 @@ if (isset($_POST['simpan'])) {
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
                     <select name="role" required class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 text-sm">
-                        <option value="superadmin">Superadmin</option>
-                        <option value="admin">Admin</option>
-                        <option value="ketua rt">Ketua RT</option>
-                        <option value="wakil rt">Wakil RT</option>
+                        <option value="ketua rt">Ketua RT (Superadmin)</option>
+                        <option value="sekretaris">Sekretaris (Admin)</option>
+                        <option value="warga">Warga</option>
                     </select>
                 </div>
 

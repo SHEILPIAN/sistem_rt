@@ -8,7 +8,7 @@ if (!isset($_SESSION['status_login']) || $_SESSION['status_login'] !== true) {
 }
 
 // Tolak akses jika yang masuk bukan admin
-if ($_SESSION['role'] != 'admin') {
+if (!in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])) {
     echo "<script>alert('Akses Ditolak! Hanya Pengurus RT yang bisa menambah data ini.'); window.location='warga.php';</script>";
     exit;
 }

@@ -8,9 +8,9 @@ if (!isset($_SESSION['status_login']) || $_SESSION['status_login'] !== true) {
     exit;
 }
 
-// Hanya superadmin yang bisa akses
-if ($_SESSION['role'] !== 'superadmin') {
-    echo "<script>alert('Akses Ditolak! Hanya Superadmin yang bisa mengakses halaman ini.'); window.location='index.php';</script>";
+// Hanya ketua rt yang bisa akses
+if ($_SESSION['role'] !== 'ketua rt') {
+    echo "<script>alert('Akses Ditolak! Hanya Ketua RT yang bisa mengakses halaman ini.'); window.location='index.php';</script>";
     exit;
 }
 
@@ -48,6 +48,18 @@ if (isset($_GET['cari'])) {
             </a>
         </div>
 
+        <!-- Tabs -->
+        <?php $active_tab = isset($_GET['tab']) ? $_GET['tab'] : 'list'; ?>
+        <div class="flex border-b border-gray-200 bg-white">
+            <a href="users.php?tab=list" class="w-1/2 py-3 text-center text-sm font-semibold transition <?= $active_tab == 'list' ? 'text-blue-900 border-b-2 border-blue-900' : 'text-gray-500 hover:text-blue-700' ?>">
+                <i class="fa-solid fa-users"></i> Daftar User
+            </a>
+            <a href="users.php?tab=permission" class="w-1/2 py-3 text-center text-sm font-semibold transition <?= $active_tab == 'permission' ? 'text-blue-900 border-b-2 border-blue-900' : 'text-gray-500 hover:text-blue-700' ?>">
+                <i class="fa-solid fa-key"></i> Info Hak Akses
+            </a>
+        </div>
+
+        <?php if($active_tab == 'list'): ?>
         <!-- Kolom Pencarian -->
         <div class="p-4 bg-gray-50 border-b border-gray-200">
             <form action="" method="GET" class="relative">
@@ -87,11 +99,16 @@ if (isset($_GET['cari'])) {
                         </div>
                     </div>
 
-                    <?php if($row['id'] != $_SESSION['id_user']): ?>
-                    <a href="hapus_user.php?id=<?= $row['id']; ?>" onclick="return confirm('Peringatan: Yakin ingin menghapus user ini?');" class="absolute top-3 right-3 text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 w-8 h-8 flex items-center justify-center rounded-lg transition border border-red-100 shadow-sm">
-                        <i class="fa-solid fa-trash-can text-sm"></i>
-                    </a>
-                    <?php endif; ?>
+                    <div class="absolute top-3 right-3 flex gap-2">
+                        <a href="edit_user.php?id=<?= $row['id']; ?>" class="text-blue-400 hover:text-blue-600 bg-blue-50 hover:bg-blue-100 w-8 h-8 flex items-center justify-center rounded-lg transition border border-blue-100 shadow-sm">
+                            <i class="fa-solid fa-pen text-sm"></i>
+                        </a>
+                        <?php if($row['id'] != $_SESSION['id_user']): ?>
+                        <a href="hapus_user.php?id=<?= $row['id']; ?>" onclick="return confirm('Peringatan: Yakin ingin menghapus user ini?');" class="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 w-8 h-8 flex items-center justify-center rounded-lg transition border border-red-100 shadow-sm">
+                            <i class="fa-solid fa-trash-can text-sm"></i>
+                        </a>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <?php endwhile; ?>
             <?php else: ?>
@@ -104,6 +121,40 @@ if (isset($_GET['cari'])) {
                 </div>
             <?php endif; ?>
         </div>
+        <?php else: ?>
+        <!-- Tab Info Hak Akses -->
+        <div class="p-4 space-y-4">
+            <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl shadow-sm">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-user-shield text-blue-700 text-lg"></i>
+                    <h3 class="font-bold text-blue-900">Ketua RT (Superadmin)</h3>
+                </div>
+                <p class="text-xs text-gray-700 leading-relaxed">
+                    Memiliki akses <b>penuh</b> ke seluruh fitur aplikasi. Dapat menambah, mengedit, dan menghapus data (Warga, Keuangan, Surat, dll), serta memiliki akses khusus untuk manajemen User.
+                </p>
+            </div>
+            
+            <div class="bg-green-50 border border-green-200 p-4 rounded-xl shadow-sm">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-user-pen text-green-700 text-lg"></i>
+                    <h3 class="font-bold text-green-900">Sekretaris (Admin)</h3>
+                </div>
+                <p class="text-xs text-gray-700 leading-relaxed">
+                    Dapat menambah dan mengedit data master operasional harian seperti Data Warga, Keuangan, Kematian, dll. Namun, <b>tidak bisa</b> menambah atau menghapus User.
+                </p>
+            </div>
+
+            <div class="bg-orange-50 border border-orange-200 p-4 rounded-xl shadow-sm">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-users-viewfinder text-orange-700 text-lg"></i>
+                    <h3 class="font-bold text-orange-900">Warga (Monitoring)</h3>
+                </div>
+                <p class="text-xs text-gray-700 leading-relaxed">
+                    Hanya dapat <b>melihat data</b> (Read-Only) dan memberikan input berupa <b>Pengaduan Laporan</b>. Warga tidak diizinkan untuk mengubah atau menghapus data sistem apapun.
+                </p>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- Bottom Navigation Bar -->
         <div class="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-200 flex justify-around py-3 text-gray-500 text-xs shadow-lg z-50">

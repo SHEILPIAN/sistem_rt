@@ -2,7 +2,7 @@
 include 'config.php';
 
 // Pastikan yang akses adalah admin
-if (!isset($_SESSION['status_login']) || $_SESSION['role'] != 'admin') {
+if (!isset($_SESSION['status_login']) || !in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])) {
     header("Location: login.php");
     exit;
 }

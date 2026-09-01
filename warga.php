@@ -39,7 +39,7 @@ if (isset($_GET['cari'])) {
                 <h1 class="font-bold text-lg">Data Warga</h1>
             </div>
             
-            <?php if($_SESSION['role'] == 'admin'): ?>
+            <?php if(in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])): ?>
             <a href="tambah_warga.php" class="bg-white text-blue-900 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-100">
                 <i class="fa-solid fa-plus"></i> Warga
             </a>
@@ -73,7 +73,7 @@ if (isset($_GET['cari'])) {
                     <p class="text-xs text-gray-500">Menampilkan <?= $jumlah_data; ?> data warga.</p>
     
                     <!-- Tombol Export Excel (Hanya untuk Admin) -->
-                    <?php if($_SESSION['role'] == 'admin'): ?>
+                    <?php if(in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])): ?>
                     <a href="export_warga.php<?= (isset($_GET['cari']) && $_GET['cari'] != '') ? '?cari='.$_GET['cari'] : '' ?>" class="bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold py-1.5 px-3 rounded-lg shadow-sm flex items-center gap-1 transition">
                         <i class="fa-solid fa-file-excel"></i> Export Excel
                     </a>
@@ -95,7 +95,7 @@ if (isset($_GET['cari'])) {
                         </div>
 
                         <!-- Tombol Lihat Dokumen (Khusus Admin) -->
-                        <?php if(isset($_SESSION['role']) && $_SESSION['role'] == 'admin'): ?>
+                        <?php if(isset($_SESSION['role']) && in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])): ?>
                         <div class="flex gap-2 pt-2 mt-1 border-t border-gray-100">
                             <!-- Cek apakah foto KTP ada -->
                             <?php if(!empty($row['foto_ktp'])): ?>
@@ -123,7 +123,7 @@ if (isset($_GET['cari'])) {
                     </div>
 
                     <!-- Tombol Hapus (Hanya Muncul untuk Admin) -->
-                    <?php if(isset($_SESSION['role']) && $_SESSION['role'] == 'admin'): ?>
+                    <?php if(isset($_SESSION['role']) && in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])): ?>
                     <a href="hapus_warga.php?id=<?= $row['id']; ?>" onclick="return confirm('Peringatan: Yakin ingin menghapus permanen data <?= $row['nama']; ?> beserta fotonya?');" class="absolute top-3 right-3 text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 w-8 h-8 flex items-center justify-center rounded-lg transition border border-red-100 shadow-sm">
                         <i class="fa-solid fa-trash-can text-sm"></i>
                     </a>
