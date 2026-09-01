@@ -1,6 +1,11 @@
 <?php
 include 'config.php';
-$query = mysqli_query($conn, "SELECT * FROM surat ORDER BY tanggal_request DESC") or die(mysqli_error($conn));
+if ($_SESSION['role'] == 'warga') {
+    $nama_user = mysqli_real_escape_string($conn, $_SESSION['nama_lengkap']);
+    $query = mysqli_query($conn, "SELECT * FROM surat WHERE nama_pemohon = '$nama_user' ORDER BY tanggal_request DESC") or die(mysqli_error($conn));
+} else {
+    $query = mysqli_query($conn, "SELECT * FROM surat ORDER BY tanggal_request DESC") or die(mysqli_error($conn));
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
