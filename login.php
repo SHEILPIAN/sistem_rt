@@ -48,7 +48,7 @@ if (isset($_POST['login'])) {
             <!-- Bagian ini yang diubah menjadi Gambar Logo -->
             <img src="image01.jpeg.png" alt="Logo RT" class="w-24 h-24 object-cover rounded-full mx-auto shadow-lg mb-4 border-0 border-white bg-white">
             
-            <h1 class="text-2xl font-extrabold text-white">GRAHA KALIMAS RT 5</h1>
+            <h1 class="text-2xl font-extrabold text-white">GRAHA KALIMAS RT 31</h1>
             <p class="text-blue-200 text-sm">Silakan login untuk mengelola data</p>
         </div>
 
