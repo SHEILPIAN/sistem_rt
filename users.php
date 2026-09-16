@@ -8,11 +8,8 @@ if (!isset($_SESSION['status_login']) || $_SESSION['status_login'] !== true) {
     exit;
 }
 
-// Hanya ketua rt yang bisa akses
-if ($_SESSION['role'] !== 'ketua rt') {
-    echo "<script>alert('Akses Ditolak! Hanya Ketua RT yang bisa mengakses halaman ini.'); window.location='index.php';</script>";
-    exit;
-}
+// Hanya yang memiliki izin kelola user (ketua rt) yang bisa akses
+require_permission('manage_users', 'index.php', 'Akses Ditolak! Hanya Ketua RT yang bisa mengakses halaman ini.');
 
 // Logika Pencarian Data
 $kata_kunci = "";
@@ -129,9 +126,15 @@ if (isset($_GET['cari'])) {
                     <i class="fa-solid fa-user-shield text-blue-700 text-lg"></i>
                     <h3 class="font-bold text-blue-900">Ketua RT (Superadmin)</h3>
                 </div>
-                <p class="text-xs text-gray-700 leading-relaxed">
-                    Memiliki akses <b>penuh</b> ke seluruh fitur aplikasi. Dapat menambah, mengedit, dan menghapus data (Warga, Keuangan, Surat, dll), serta memiliki akses khusus untuk manajemen User.
+                <p class="text-xs text-gray-700 leading-relaxed mb-2">
+                    Memiliki akses <b>penuh</b> ke seluruh fitur aplikasi:
                 </p>
+                <ul class="text-[11px] text-gray-600 list-disc pl-4 space-y-1">
+                    <li>Melihat <b>NIK warga secara lengkap</b> & membuka berkas fisik KTP/KK.</li>
+                    <li>Menambah, mengedit, menghapus, serta ekspor data warga (Excel).</li>
+                    <li>Manajemen User (menambah & mengelola akun admin/warga).</li>
+                    <li>Kelola penuh modul Keuangan, Surat, Aduan, dan Inventaris.</li>
+                </ul>
             </div>
             
             <div class="bg-green-50 border border-green-200 p-4 rounded-xl shadow-sm">
@@ -139,19 +142,31 @@ if (isset($_GET['cari'])) {
                     <i class="fa-solid fa-user-pen text-green-700 text-lg"></i>
                     <h3 class="font-bold text-green-900">Sekretaris (Admin)</h3>
                 </div>
-                <p class="text-xs text-gray-700 leading-relaxed">
-                    Dapat menambah dan mengedit data master operasional harian seperti Data Warga, Keuangan, Kematian, dll. Namun, <b>tidak bisa</b> menambah atau menghapus User.
+                <p class="text-xs text-gray-700 leading-relaxed mb-2">
+                    Memiliki hak akses <b>operasional harian</b>:
                 </p>
+                <ul class="text-[11px] text-gray-600 list-disc pl-4 space-y-1">
+                    <li>Melihat <b>NIK warga secara lengkap</b> & membuka berkas fisik KTP/KK.</li>
+                    <li>Mengelola data master warga harian serta ekspor data sensus.</li>
+                    <li>Mengelola operasional Keuangan, Surat Pengantar, dan Aduan.</li>
+                    <li><span class="text-red-500 font-medium">Tidak memiliki izin</span> untuk menambah atau mengelola data User.</li>
+                </ul>
             </div>
 
             <div class="bg-orange-50 border border-orange-200 p-4 rounded-xl shadow-sm">
                 <div class="flex items-center gap-2 mb-2">
                     <i class="fa-solid fa-users-viewfinder text-orange-700 text-lg"></i>
-                    <h3 class="font-bold text-orange-900">Warga (Monitoring)</h3>
+                    <h3 class="font-bold text-orange-900">Warga (Monitoring & Layanan Mandiri)</h3>
                 </div>
-                <p class="text-xs text-gray-700 leading-relaxed">
-                    Hanya dapat <b>melihat data</b> (Read-Only) dan memberikan input berupa <b>Pengaduan Laporan</b>. Warga tidak diizinkan untuk mengubah atau menghapus data sistem apapun.
+                <p class="text-xs text-gray-700 leading-relaxed mb-2">
+                    Akses pemantauan dan layanan mandiri dengan perlindungan privasi data:
                 </p>
+                <ul class="text-[11px] text-gray-600 list-disc pl-4 space-y-1">
+                    <li>Melihat daftar warga (Nama, Alamat RT, Status Warga).</li>
+                    <li><b class="text-orange-900">Proteksi Privasi:</b> <u>Seluruh nomor NIK warga dan berkas KTP/KK disembunyikan total</u> demi keamanan data kependudukan.</li>
+                    <li>Pencarian data warga hanya dapat dilakukan berdasarkan Nama warga.</li>
+                    <li>Dapat mengajukan permohonan Surat Pengantar dan Pengaduan Laporan secara mandiri.</li>
+                </ul>
             </div>
         </div>
         <?php endif; ?>

@@ -12,10 +12,10 @@ if (!isset($_SESSION['status_login']) || $_SESSION['status_login'] !== true) {
 $kata_kunci = "";
 if (isset($_GET['cari'])) {
     $kata_kunci = $_GET['cari'];
-    // Warga hanya dapat mencari berdasarkan nama, bukan NIK.
-    $filter_pencarian = $_SESSION['role'] === 'warga'
-        ? "nama LIKE '%$kata_kunci%'"
-        : "nama LIKE '%$kata_kunci%' OR nik LIKE '%$kata_kunci%'";
+    // Hanya role dengan izin 'view_nik' (ketua rt & sekretaris) yang dapat mencari berdasarkan NIK. Warga hanya dapat mencari berdasarkan nama.
+    $filter_pencarian = has_permission('view_nik')
+        ? "nama LIKE '%$kata_kunci%' OR nik LIKE '%$kata_kunci%'"
+        : "nama LIKE '%$kata_kunci%'";
     $query = mysqli_query($conn, "SELECT * FROM warga WHERE $filter_pencarian ORDER BY nama ASC") or die(mysqli_error($conn));
 } else {
     // Jika tidak melakukan pencarian, tampilkan semua data
@@ -42,7 +42,7 @@ if (isset($_GET['cari'])) {
                 <h1 class="font-bold text-lg">Data Warga</h1>
             </div>
             
-            <?php if(in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])): ?>
+            <?php if(has_permission('tambah_warga')): ?>
             <a href="tambah_warga.php" class="bg-white text-blue-900 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-100">
                 <i class="fa-solid fa-plus"></i> Warga
             </a>
@@ -56,7 +56,7 @@ if (isset($_GET['cari'])) {
                     <i class="fa-solid fa-magnifying-glass text-gray-400"></i>
                 </div>
                 <!-- Input pencarian menyimpan value kata kunci agar tidak hilang saat di-enter -->
-                <input type="text" name="cari" value="<?= $kata_kunci; ?>" placeholder="<?= $_SESSION['role'] === 'warga' ? 'Cari nama warga...' : 'Cari nama atau NIK warga...'; ?>" class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-900 focus:border-blue-900 text-sm outline-none transition">
+                <input type="text" name="cari" value="<?= $kata_kunci; ?>" placeholder="<?= has_permission('view_nik') ? 'Cari nama atau NIK warga...' : 'Cari nama warga...'; ?>" class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-900 focus:border-blue-900 text-sm outline-none transition">
                 
                 <?php if(isset($_GET['cari']) && $_GET['cari'] != ''): ?>
                     <a href="warga.php" class="absolute inset-y-0 right-0 pr-3 flex items-center text-red-500 hover:text-red-700">
@@ -76,12 +76,12 @@ if (isset($_GET['cari'])) {
                     <p class="text-xs text-gray-500">Menampilkan <?= $jumlah_data; ?> data warga.</p>
     
                     <!-- Tombol Export Excel (Hanya untuk Admin) -->
-                    <?php if(in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])): ?>
+                    <?php if(has_permission('export_warga')): ?>
                     <a href="export_warga.php<?= (isset($_GET['cari']) && $_GET['cari'] != '') ? '?cari='.$_GET['cari'] : '' ?>" class="bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold py-1.5 px-3 rounded-lg shadow-sm flex items-center gap-1 transition">
                         <i class="fa-solid fa-file-excel"></i> Export Excel
                     </a>
                     <?php endif; ?>
-                </div>>
+                </div>
                 <?php while($row = mysqli_fetch_assoc($query)) : ?>
                 <!-- Tambahkan class 'relative' di div utama ini -->
                 <div class="bg-white border border-gray-200 p-3 rounded-xl shadow-sm flex items-start gap-3 hover:bg-blue-50 transition relative">
@@ -90,7 +90,7 @@ if (isset($_GET['cari'])) {
                     </div>
                     <div class="w-full pr-8">
                         <h3 class="font-bold text-gray-800 text-sm"><?= $row['nama']; ?></h3>
-                        <?php if ($_SESSION['role'] !== 'warga'): ?>
+                        <?php if (has_permission('view_nik')): ?>
                         <p class="text-xs text-gray-600 font-mono mb-1">NIK: <?= $row['nik']; ?></p>
                         <?php endif; ?>
                         
@@ -99,8 +99,8 @@ if (isset($_GET['cari'])) {
                             <span class="text-[10px] <?= ($row['status_warga'] == 'Tetap') ? 'bg-green-100 text-green-700 border-green-200' : 'bg-orange-100 text-orange-700 border-orange-200'; ?> px-2 py-0.5 rounded border font-semibold"><?= $row['status_warga']; ?></span>
                         </div>
 
-                        <!-- Tombol Lihat Dokumen (Khusus Admin) -->
-                        <?php if(isset($_SESSION['role']) && in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])): ?>
+                        <!-- Tombol Lihat Dokumen (Khusus Admin / Yang punya izin) -->
+                        <?php if(has_permission('view_document_warga')): ?>
                         <div class="flex gap-2 pt-2 mt-1 border-t border-gray-100">
                             <!-- Cek apakah foto KTP ada -->
                             <?php if(!empty($row['foto_ktp'])): ?>
@@ -128,7 +128,7 @@ if (isset($_GET['cari'])) {
                     </div>
 
                     <!-- Tombol Hapus (Hanya Muncul untuk Admin) -->
-                    <?php if(isset($_SESSION['role']) && in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])): ?>
+                    <?php if(has_permission('hapus_warga')): ?>
                     <a href="hapus_warga.php?id=<?= $row['id']; ?>" onclick="return confirm('Peringatan: Yakin ingin menghapus permanen data <?= $row['nama']; ?> beserta fotonya?');" class="absolute top-3 right-3 text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 w-8 h-8 flex items-center justify-center rounded-lg transition border border-red-100 shadow-sm">
                         <i class="fa-solid fa-trash-can text-sm"></i>
                     </a>

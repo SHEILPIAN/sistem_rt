@@ -44,7 +44,7 @@ if ($_SESSION['role'] == 'warga') {
                         </div>
                         <div>
                             <h3 class="font-bold text-gray-800 text-sm"><?= $row['jenis_surat']; ?></h3>
-                            <p class="text-[11px] text-gray-500"><?= $row['nama_pemohon']; ?> (NIK: <?= $row['nik_pemohon']; ?>)</p>
+                            <p class="text-[11px] text-gray-500"><?= $row['nama_pemohon']; ?><?php if (has_permission('view_nik')): ?> (NIK: <?= $row['nik_pemohon']; ?>)<?php endif; ?></p>
                         </div>
                     </div>
                     <?php if($row['status_surat'] == 'Selesai'): ?>
@@ -59,7 +59,7 @@ if ($_SESSION['role'] == 'warga') {
                     <p class="text-xs text-gray-600"><strong>Keperluan:</strong> <?= $row['keperluan']; ?></p>
                 </div>
                 <div class="flex justify-between items-end mt-2">
-                    <?php if(in_array($_SESSION['role'], ['ketua rt', 'sekretaris']) && $row['status_surat'] == 'Menunggu'): ?>
+                    <?php if(has_permission('approve_surat') && $row['status_surat'] == 'Menunggu'): ?>
                     <div class="flex gap-2 mt-2">
                         <a href="update_surat.php?id=<?= $row['id']; ?>&status=Selesai" onclick="return confirm('Tandai pengajuan ini sebagai Selesai?')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md text-[10px] font-bold shadow-sm transition flex items-center gap-1"><i class="fa-solid fa-check"></i> Selesai</a>
                         <a href="update_surat.php?id=<?= $row['id']; ?>&status=Ditolak" onclick="return confirm('Tolak pengajuan surat ini?')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md text-[10px] font-bold shadow-sm transition flex items-center gap-1"><i class="fa-solid fa-xmark"></i> Tolak</a>

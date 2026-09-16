@@ -40,9 +40,11 @@ $role_label = ($user['role'] == 'admin') ? 'Administrator / Pengurus RT' : 'Warg
                 <h2 class="font-bold text-2xl mt-3"><?= $user['nama_lengkap']; ?></h2>
                 <p class="text-sm text-blue-200"><?= $role_label; ?></p>
                 
+                <?php if (has_permission('view_nik')): ?>
                 <div class="inline-flex items-center bg-[#24316b] text-blue-100 px-4 py-1.5 rounded-full text-xs mt-3 border border-[#3b4c9b]">
                     <i class="fa-regular fa-id-card mr-2"></i> NIK: 3604XXXXXXXXXXXXX
                 </div>
+                <?php endif; ?>
             </div>
         </div>
 
