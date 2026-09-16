@@ -35,12 +35,12 @@ if (isset($_POST['simpan'])) {
         $insert = mysqli_query($conn, "INSERT INTO kematian (
             nomor_surat, nama_almarhum, nik, tempat_lahir, tanggal_lahir, jenis_kelamin, 
             kewarganegaraan, agama, status_perkawinan, pekerjaan, alamat, 
-            hari_wafat, tanggal_wafat, pukul_wafat, tutup_usia, tempat_kematian, sebab_kematian, 
+            hari_wafat, tanggal_wafat, pukul_wafat, tutup_usia, tempat_kematian, sebab_kematian, penyebab,
             nama_pelapor, hubungan_pelapor
         ) VALUES (
             '$nomor_surat', '$nama', '$nik', '$tempat_lahir', '$tanggal_lahir', '$jk', 
             '$kewarganegaraan', '$agama', '$status_perkawinan', '$pekerjaan', '$alamat', 
-            '$hari_wafat', '$tanggal_wafat', '$pukul_wafat', '$tutup_usia', '$tempat_kematian', '$sebab_kematian', 
+            '$hari_wafat', '$tanggal_wafat', '$pukul_wafat', '$tutup_usia', '$tempat_kematian', '$sebab_kematian', '$sebab_kematian',
             '$nama_pelapor', '$hubungan_pelapor'
         )");
 

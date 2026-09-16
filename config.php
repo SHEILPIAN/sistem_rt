@@ -36,4 +36,55 @@ init_role_permissions_table($conn);
 
 // Inisialisasi otomatis tabel pengaturan_iuran dan iuran_warga
 init_iuran_tables($conn);
+
+// Inisialisasi pembaruan kolom skema otomatis (kematian, warga, iuran_warga)
+if (!function_exists('init_schema_updates')) {
+    function init_schema_updates($conn) {
+        if (!$conn) return;
+        // 1. Kolom nik, pukul_wafat, tutup_usia pada tabel kematian
+        $cek_nik = @mysqli_query($conn, "SHOW COLUMNS FROM kematian LIKE 'nik'");
+        if ($cek_nik && mysqli_num_rows($cek_nik) == 0) {
+            @mysqli_query($conn, "ALTER TABLE kematian ADD COLUMN nik VARCHAR(20) NULL AFTER nama_almarhum");
+        }
+        $cek_pukul = @mysqli_query($conn, "SHOW COLUMNS FROM kematian LIKE 'pukul_wafat'");
+        if ($cek_pukul && mysqli_num_rows($cek_pukul) == 0) {
+            @mysqli_query($conn, "ALTER TABLE kematian ADD COLUMN pukul_wafat VARCHAR(20) NULL AFTER tanggal_wafat");
+        }
+        $cek_usia = @mysqli_query($conn, "SHOW COLUMNS FROM kematian LIKE 'tutup_usia'");
+        if ($cek_usia && mysqli_num_rows($cek_usia) == 0) {
+            @mysqli_query($conn, "ALTER TABLE kematian ADD COLUMN tutup_usia VARCHAR(20) NULL AFTER hari_wafat");
+        }
+        $cek_sebab = @mysqli_query($conn, "SHOW COLUMNS FROM kematian LIKE 'sebab_kematian'");
+        if ($cek_sebab && mysqli_num_rows($cek_sebab) == 0) {
+            @mysqli_query($conn, "ALTER TABLE kematian ADD COLUMN sebab_kematian VARCHAR(100) NULL DEFAULT ''");
+        }
+        $cek_penyebab = @mysqli_query($conn, "SHOW COLUMNS FROM kematian LIKE 'penyebab'");
+        if ($cek_penyebab && mysqli_num_rows($cek_penyebab) > 0) {
+            @mysqli_query($conn, "ALTER TABLE kematian MODIFY COLUMN penyebab VARCHAR(100) NULL DEFAULT ''");
+        } else {
+            @mysqli_query($conn, "ALTER TABLE kematian ADD COLUMN penyebab VARCHAR(100) NULL DEFAULT ''");
+        }
+        $cek_jk = @mysqli_query($conn, "SHOW COLUMNS FROM kematian LIKE 'jenis_kelamin'");
+        if ($cek_jk && $r_jk = mysqli_fetch_assoc($cek_jk)) {
+            if (strpos(strtolower($r_jk['Type']), 'enum') !== false) {
+                @mysqli_query($conn, "ALTER TABLE kematian MODIFY COLUMN jenis_kelamin VARCHAR(20) NOT NULL DEFAULT 'L'");
+            }
+        }
+        // 2. Kolom hubungan_keluarga pada tabel warga agar muat status panjang
+        $cek_hub = @mysqli_query($conn, "SHOW COLUMNS FROM warga LIKE 'hubungan_keluarga'");
+        if ($cek_hub && $r_hub = mysqli_fetch_assoc($cek_hub)) {
+            if (strpos(strtolower($r_hub['Type']), 'varchar(20)') !== false) {
+                @mysqli_query($conn, "ALTER TABLE warga MODIFY COLUMN hubungan_keluarga VARCHAR(100) NULL");
+            }
+        }
+        // 3. Kolom blok pada iuran_warga
+        $cek_blok = @mysqli_query($conn, "SHOW COLUMNS FROM iuran_warga LIKE 'blok'");
+        if ($cek_blok && $r_blok = mysqli_fetch_assoc($cek_blok)) {
+            if (strpos(strtolower($r_blok['Type']), 'varchar(20)') !== false) {
+                @mysqli_query($conn, "ALTER TABLE iuran_warga MODIFY COLUMN blok VARCHAR(50) NOT NULL");
+            }
+        }
+    }
+}
+init_schema_updates($conn);
 ?>
