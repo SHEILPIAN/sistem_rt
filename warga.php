@@ -1,6 +1,7 @@
 <?php
 
 include 'config.php';
+require_once 'iuran_helper.php';
 
 // Pastikan user sudah login
 if (!isset($_SESSION['status_login']) || $_SESSION['status_login'] !== true) {
@@ -8,14 +9,32 @@ if (!isset($_SESSION['status_login']) || $_SESSION['status_login'] !== true) {
     exit;
 }
 
+// Inisialisasi tabel iuran jika belum ada
+init_iuran_tables($conn);
+$tarif_iuran = get_tarif_iuran($conn, 2026);
+
+// Peta data iuran 2026 berdasarkan warga_id dan nik
+$map_iuran = [];
+$q_iuran = @mysqli_query($conn, "SELECT * FROM iuran_warga WHERE tahun = 2026");
+if ($q_iuran) {
+    while ($ir = mysqli_fetch_assoc($q_iuran)) {
+        if (!empty($ir['warga_id'])) {
+            $map_iuran['id_' . $ir['warga_id']][] = $ir;
+        }
+        if (!empty($ir['nik'])) {
+            $map_iuran['nik_' . $ir['nik']][] = $ir;
+        }
+    }
+}
+
 // Logika Pencarian Data
 $kata_kunci = "";
 if (isset($_GET['cari'])) {
-    $kata_kunci = $_GET['cari'];
-    // Hanya role dengan izin 'view_nik' (ketua rt & sekretaris) yang dapat mencari berdasarkan NIK. Warga hanya dapat mencari berdasarkan nama.
+    $kata_kunci = mysqli_real_escape_string($conn, trim($_GET['cari']));
+    // Role dengan izin 'view_nik' dapat mencari berdasarkan NIK, nama, atau alamat/blok. Role biasa mencari nama atau alamat/blok.
     $filter_pencarian = has_permission('view_nik')
-        ? "nama LIKE '%$kata_kunci%' OR nik LIKE '%$kata_kunci%'"
-        : "nama LIKE '%$kata_kunci%'";
+        ? "(nama LIKE '%$kata_kunci%' OR nik LIKE '%$kata_kunci%' OR alamat_rt LIKE '%$kata_kunci%')"
+        : "(nama LIKE '%$kata_kunci%' OR alamat_rt LIKE '%$kata_kunci%')";
     $query = mysqli_query($conn, "SELECT * FROM warga WHERE $filter_pencarian ORDER BY nama ASC") or die(mysqli_error($conn));
 } else {
     // Jika tidak melakukan pencarian, tampilkan semua data
@@ -56,7 +75,7 @@ if (isset($_GET['cari'])) {
                     <i class="fa-solid fa-magnifying-glass text-gray-400"></i>
                 </div>
                 <!-- Input pencarian menyimpan value kata kunci agar tidak hilang saat di-enter -->
-                <input type="text" name="cari" value="<?= $kata_kunci; ?>" placeholder="<?= has_permission('view_nik') ? 'Cari nama atau NIK warga...' : 'Cari nama warga...'; ?>" class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-900 focus:border-blue-900 text-sm outline-none transition">
+                <input type="text" name="cari" value="<?= $kata_kunci; ?>" placeholder="<?= has_permission('view_nik') ? 'Cari nama, blok, atau NIK warga...' : 'Cari nama atau blok warga...'; ?>" class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-900 focus:border-blue-900 text-sm outline-none transition">
                 
                 <?php if(isset($_GET['cari']) && $_GET['cari'] != ''): ?>
                     <a href="warga.php" class="absolute inset-y-0 right-0 pr-3 flex items-center text-red-500 hover:text-red-700">
@@ -94,10 +113,42 @@ if (isset($_GET['cari'])) {
                         <p class="text-xs text-gray-600 font-mono mb-1">NIK: <?= $row['nik']; ?></p>
                         <?php endif; ?>
                         
-                        <div class="flex gap-2 mb-2">
+                        <div class="flex flex-wrap gap-2 mb-2">
                             <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200"><i class="fa-solid fa-house"></i> <?= $row['alamat_rt']; ?></span>
                             <span class="text-[10px] <?= ($row['status_warga'] == 'Tetap') ? 'bg-green-100 text-green-700 border-green-200' : 'bg-orange-100 text-orange-700 border-orange-200'; ?> px-2 py-0.5 rounded border font-semibold"><?= $row['status_warga']; ?></span>
                         </div>
+
+                        <!-- Status Iuran RT 2026 -->
+                        <?php 
+                        $warga_iurans = $map_iuran['id_' . $row['id']] ?? ($map_iuran['nik_' . $row['nik']] ?? []);
+                        if (!empty($warga_iurans)): 
+                        ?>
+                        <div class="my-2 pt-2 pb-1 border-t border-dashed border-gray-200">
+                            <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                                <?php foreach ($warga_iurans as $item_ir): 
+                                    $rekap = hitung_rekap_baris_iuran($item_ir, $tarif_iuran);
+                                    $blok_label = htmlspecialchars($item_ir['blok']);
+                                ?>
+                                    <?php if ($rekap['is_kosong']): ?>
+                                        <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md border border-gray-300 flex items-center gap-1 font-medium">
+                                            <i class="fa-regular fa-circle text-gray-400"></i> <?= $blok_label; ?>: Kosong
+                                        </span>
+                                    <?php elseif ($rekap['is_lunas']): ?>
+                                        <span class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1 font-semibold">
+                                            <i class="fa-solid fa-circle-check text-emerald-500"></i> <?= $blok_label; ?>: Lunas
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="text-[10px] bg-rose-50 text-rose-700 px-2 py-0.5 rounded-md border border-rose-200 flex items-center gap-1 font-semibold">
+                                            <i class="fa-solid fa-circle-exclamation text-rose-500"></i> <?= $blok_label; ?>: -Rp <?= number_format(abs($rekap['sisa_kurang_2026']), 0, ',', '.'); ?>
+                                        </span>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </div>
+                            <a href="keuangan.php?tab=iuran&cari=<?= urlencode($row['nama']); ?>" class="inline-flex items-center gap-1 text-[10px] text-blue-700 hover:text-blue-900 font-medium hover:underline">
+                                <i class="fa-solid fa-receipt text-xs"></i> Rekap Iuran &rarr;
+                            </a>
+                        </div>
+                        <?php endif; ?>
 
                         <!-- Tombol Lihat Dokumen (Khusus Admin / Yang punya izin) -->
                         <?php if(has_permission('view_document_warga')): ?>

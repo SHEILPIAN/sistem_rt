@@ -9,6 +9,7 @@ if (!isset($_SESSION['status_login'])) {
 
 $can_manage = has_permission('manage:keuangan');
 $can_view   = has_permission('read:keuangan');
+$can_view_nik = has_permission('view_nik');
 
 // Default tab: 'iuran' sesuai permintaan rekap iuran bulanan
 $active_tab = isset($_GET['tab']) && in_array($_GET['tab'], ['iuran', 'kas']) ? $_GET['tab'] : 'iuran';
@@ -16,6 +17,8 @@ $tahun_aktif = isset($_GET['tahun']) ? (int)$_GET['tahun'] : 2026;
 if ($tahun_aktif <= 0) $tahun_aktif = 2026;
 
 $tarif_bulanan = get_tarif_iuran($conn, $tahun_aktif);
+
+$kata_kunci = isset($_GET['cari']) ? trim($_GET['cari']) : '';
 
 $pesan_sukses = "";
 $pesan_error  = "";
@@ -71,10 +74,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $can_manage) {
         $keterangan  = mysqli_real_escape_string($conn, trim($_POST['keterangan'] ?? ''));
 
         if (!empty($blok) && !empty($nama)) {
-            $sql = "INSERT INTO iuran_warga (tahun, blok, nama, tunggakan_bulan_lalu, keterangan) 
-                    VALUES ($tahun_warga, '$blok', '$nama', $tunggakan, '$keterangan')";
+            // Cek apakah warga ada di master warga
+            $q_w = mysqli_query($conn, "SELECT id, nik FROM warga WHERE nama = '$nama' OR alamat_rt LIKE '%$blok%' LIMIT 1");
+            $w_id = null;
+            $w_nik = sprintf('32013126%08d', rand(100, 9999));
+            if ($q_w && mysqli_num_rows($q_w) > 0) {
+                $rw = mysqli_fetch_assoc($q_w);
+                $w_id = (int)$rw['id'];
+                $w_nik = $rw['nik'];
+            } else {
+                $st_w = (strtolower($keterangan) === 'dikontrak') ? 'Kontrak' : 'Tetap';
+                mysqli_query($conn, "INSERT INTO warga (nik, nama, alamat_rt, status_warga, jenis_kelamin, hubungan_keluarga) 
+                    VALUES ('$w_nik', '$nama', 'Blok $blok', '$st_w', 'L', 'Kepala Keluarga')");
+                $w_id = mysqli_insert_id($conn);
+            }
+
+            $sql = "INSERT INTO iuran_warga (tahun, blok, warga_id, nik, nama, tunggakan_bulan_lalu, keterangan) 
+                    VALUES ($tahun_warga, '$blok', " . ($w_id ? $w_id : "NULL") . ", '$w_nik', '$nama', $tunggakan, '$keterangan')";
             if (mysqli_query($conn, $sql)) {
-                $pesan_sukses = "Data warga blok $blok ($nama) berhasil ditambahkan ke rekap iuran $tahun_warga.";
+                $pesan_sukses = "Data warga blok $blok ($nama) berhasil ditambahkan ke rekap iuran.";
             } else {
                 $pesan_error = "Gagal menambahkan warga: " . mysqli_error($conn);
             }
@@ -88,12 +106,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $can_manage) {
         $id_warga    = (int)($_POST['id'] ?? 0);
         $blok        = mysqli_real_escape_string($conn, trim($_POST['blok'] ?? ''));
         $nama        = mysqli_real_escape_string($conn, trim($_POST['nama'] ?? ''));
+        $nik         = mysqli_real_escape_string($conn, trim($_POST['nik'] ?? ''));
         $tunggakan   = (int)($_POST['tunggakan_bulan_lalu'] ?? 0);
         $keterangan  = mysqli_real_escape_string($conn, trim($_POST['keterangan'] ?? ''));
 
         if ($id_warga > 0 && !empty($blok) && !empty($nama)) {
-            $sql = "UPDATE iuran_warga SET blok = '$blok', nama = '$nama', tunggakan_bulan_lalu = $tunggakan, keterangan = '$keterangan' WHERE id = $id_warga";
+            $sql = "UPDATE iuran_warga SET blok = '$blok', nama = '$nama', nik = '$nik', tunggakan_bulan_lalu = $tunggakan, keterangan = '$keterangan' WHERE id = $id_warga";
             if (mysqli_query($conn, $sql)) {
+                // Update juga ke tabel master warga jika ada relasi
+                $q_cek_w = mysqli_query($conn, "SELECT warga_id FROM iuran_warga WHERE id = $id_warga");
+                if ($q_cek_w && $row_w = mysqli_fetch_assoc($q_cek_w)) {
+                    if (!empty($row_w['warga_id'])) {
+                        $wid = (int)$row_w['warga_id'];
+                        $nik_update = !empty($nik) ? ", nik = '$nik'" : "";
+                        mysqli_query($conn, "UPDATE warga SET nama = '$nama', alamat_rt = 'Blok $blok' $nik_update WHERE id = $wid");
+                    }
+                }
                 $pesan_sukses = "Data warga berhasil diperbarui.";
             } else {
                 $pesan_error = "Gagal memperbarui data warga.";
@@ -133,14 +161,40 @@ $saldo_kas = $tot_masuk - $tot_keluar;
 $q_transaksi = mysqli_query($conn, "SELECT * FROM keuangan ORDER BY tanggal DESC, id DESC");
 
 // ==========================================
-// DATA REKAP IURAN WARGA
+// DATA REKAP IURAN WARGA (80 WARGA)
 // ==========================================
-$q_iuran = mysqli_query($conn, "SELECT * FROM iuran_warga WHERE tahun = $tahun_aktif ORDER BY id ASC");
+$sql_filter = "tahun = $tahun_aktif";
+if (!empty($kata_kunci)) {
+    $safe_kunci = mysqli_real_escape_string($conn, $kata_kunci);
+    $sql_filter .= " AND (nama LIKE '%$safe_kunci%' OR blok LIKE '%$safe_kunci%' OR nik LIKE '%$safe_kunci%')";
+}
+
+$q_iuran = mysqli_query($conn, "SELECT * FROM iuran_warga WHERE $sql_filter ORDER BY id ASC");
 $daftar_iuran = [];
 $total_warga_count = 0;
-$total_kosong_count = 0;
+$counts_status = ['Kosong' => 0, 'dikontrak' => 0, 'Rumah ke 2' => 0, 'Penghuni' => 0];
+
+$sum_uang_lalu = 0;
+$sum_harus_bayar = 0;
 $sum_iuran_terkumpul = 0;
 $sum_tunggakan_sisa = 0;
+
+// Query seluruh status hunian untuk card ringkasan (tanpa filter pencarian)
+$q_all_status = mysqli_query($conn, "SELECT keterangan FROM iuran_warga WHERE tahun = $tahun_aktif");
+if ($q_all_status) {
+    while ($rs = mysqli_fetch_assoc($q_all_status)) {
+        $ket_raw = trim($rs['keterangan'] ?? '');
+        if (strtolower($ket_raw) === 'kosong') {
+            $counts_status['Kosong']++;
+        } elseif (strtolower($ket_raw) === 'dikontrak') {
+            $counts_status['dikontrak']++;
+        } elseif (strtolower($ket_raw) === 'rumah ke 2') {
+            $counts_status['Rumah ke 2']++;
+        } else {
+            $counts_status['Penghuni']++;
+        }
+    }
+}
 
 if ($q_iuran) {
     while ($row = mysqli_fetch_assoc($q_iuran)) {
@@ -149,13 +203,13 @@ if ($q_iuran) {
         $daftar_iuran[] = $row;
 
         $total_warga_count++;
-        if ($kalkulasi['is_kosong']) {
-            $total_kosong_count++;
-        } else {
-            $sum_iuran_terkumpul += $kalkulasi['total_bayar_2026'];
-            if ($kalkulasi['sisa_kurang_2026'] < 0) {
-                $sum_tunggakan_sisa += abs($kalkulasi['sisa_kurang_2026']);
+        if (!$kalkulasi['is_kosong']) {
+            $sum_uang_lalu += $kalkulasi['tunggakan_uang_2025'];
+            if (is_numeric($kalkulasi['jumlah_harus_dibayar'])) {
+                $sum_harus_bayar += $kalkulasi['jumlah_harus_dibayar'];
             }
+            $sum_iuran_terkumpul += $kalkulasi['total_bayar_2026'];
+            $sum_tunggakan_sisa += $kalkulasi['sisa_kurang_2026'];
         }
     }
 }
@@ -197,20 +251,20 @@ $bulan_labels = [
             <div class="flex items-center gap-3">
                 <a href="index.php" class="text-white text-xl hover:text-blue-200 transition"><i class="fa-solid fa-arrow-left"></i></a>
                 <div>
-                    <h1 class="font-bold text-lg leading-tight">Keuangan & Iuran RT</h1>
-                    <p class="text-xs text-blue-200">Sistem Pengelolaan Kas dan Rekap Iuran Bulanan Warga</p>
+                    <h1 class="font-bold text-lg leading-tight">Keuangan & Rekap Iuran RT</h1>
+                    <p class="text-xs text-blue-200">Buku Kas Umum dan Rekapitulasi Iuran Warga RT 31</p>
                 </div>
             </div>
             
             <div class="flex items-center gap-2">
                 <?php if ($active_tab === 'iuran'): ?>
-                    <a href="export_iuran.php?tahun=<?= $tahun_aktif; ?>" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm flex items-center gap-1.5 transition">
-                        <i class="fa-solid fa-file-excel"></i> <span class="hidden sm:inline">Export Excel</span>
+                    <a href="export_iuran.php?tahun=<?= $tahun_aktif; ?>" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 px-3.5 rounded-lg shadow-sm flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-file-excel text-sm"></i> <span>Export Excel (.xls)</span>
                     </a>
                 <?php else: ?>
                     <?php if ($can_manage): ?>
-                        <a href="export_keuangan.php" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm flex items-center gap-1.5 transition">
-                            <i class="fa-solid fa-file-excel"></i> <span class="hidden sm:inline">Export Kas</span>
+                        <a href="export_keuangan.php" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 px-3.5 rounded-lg shadow-sm flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-file-excel text-sm"></i> <span>Export Kas (.xls)</span>
                         </a>
                     <?php endif; ?>
                 <?php endif; ?>
@@ -241,7 +295,7 @@ $bulan_labels = [
         <!-- Sub Tabs Navigasi: Rekap Iuran Bulanan vs Buku Kas Umum -->
         <div class="flex border-b border-gray-200 bg-white sticky top-0 z-20">
             <a href="keuangan.php?tab=iuran&tahun=<?= $tahun_aktif; ?>" class="w-1/2 py-3.5 text-center text-sm font-bold transition flex items-center justify-center gap-2 <?= $active_tab === 'iuran' ? 'text-blue-900 border-b-2 border-blue-900 bg-blue-50/50' : 'text-gray-500 hover:text-blue-700 hover:bg-gray-50' ?>">
-                <i class="fa-solid fa-table text-yellow-500 text-base"></i> Rekap Iuran <?= $tahun_aktif; ?>
+                <i class="fa-solid fa-table text-yellow-500 text-base"></i> Rekap Iuran <?= $tahun_aktif; ?> (80 Kavling)
             </a>
             <a href="keuangan.php?tab=kas" class="w-1/2 py-3.5 text-center text-sm font-bold transition flex items-center justify-center gap-2 <?= $active_tab === 'kas' ? 'text-blue-900 border-b-2 border-blue-900 bg-blue-50/50' : 'text-gray-500 hover:text-blue-700 hover:bg-gray-50' ?>">
                 <i class="fa-solid fa-book text-emerald-600 text-base"></i> Buku Kas Umum RT
@@ -254,7 +308,7 @@ $bulan_labels = [
         <!-- ========================================== -->
         <div class="p-4 space-y-4">
             
-            <!-- Baris Ringkasan & Parameter Tarif -->
+            <!-- Baris Ringkasan Statistik Finansial -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <!-- Card Saldo Kas RT -->
                 <div class="bg-gradient-to-br from-blue-800 to-blue-950 p-4 rounded-xl text-white shadow relative overflow-hidden">
@@ -284,52 +338,71 @@ $bulan_labels = [
                 <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-xl shadow-sm">
                     <p class="text-[11px] text-emerald-800 font-medium">TOTAL TERKUMPUL (<?= $tahun_aktif; ?>)</p>
                     <h3 class="text-2xl font-bold text-emerald-700 mt-0.5">Rp <?= number_format($sum_iuran_terkumpul, 0, ',', '.'); ?></h3>
-                    <p class="text-[10px] text-emerald-600 mt-2">Akumulasi seluruh setoran Jan - Des <?= $tahun_aktif; ?></p>
+                    <p class="text-[10px] text-emerald-600 mt-2">Akumulasi setoran Jan - Des <?= $tahun_aktif; ?></p>
                 </div>
 
                 <!-- Card Sisa Tunggakan Warga -->
                 <div class="bg-red-50 border border-red-200 p-4 rounded-xl shadow-sm">
-                    <p class="text-[11px] text-red-800 font-medium">TOTAL TUNGGAKAN BELUM DIBAYAR</p>
-                    <h3 class="text-2xl font-bold text-red-600 mt-0.5">- Rp <?= number_format($sum_tunggakan_sisa, 0, ',', '.'); ?></h3>
-                    <p class="text-[10px] text-red-500 mt-2">Dari total <?= $total_warga_count - $total_kosong_count; ?> warga aktif (<?= $total_kosong_count; ?> kosong)</p>
+                    <p class="text-[11px] text-red-800 font-medium">TOTAL KEKURANGAN S/D DES <?= $tahun_aktif; ?></p>
+                    <h3 class="text-2xl font-bold text-red-600 mt-0.5"><?= $sum_tunggakan_sisa < 0 ? '- Rp ' . number_format(abs($sum_tunggakan_sisa), 0, ',', '.') : 'Rp ' . number_format($sum_tunggakan_sisa, 0, ',', '.'); ?></h3>
+                    <p class="text-[10px] text-red-500 mt-2">Termasuk tunggakan s/d Des <?= $tahun_aktif - 1; ?> (-Rp <?= number_format(abs($sum_uang_lalu), 0, ',', '.'); ?>)</p>
                 </div>
             </div>
 
-            <!-- Toolbar Aksi -->
+            <!-- Toolbar Aksi & Filter Pencarian -->
             <div class="flex flex-wrap items-center justify-between gap-2 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
                     <span class="text-xs font-bold text-gray-700"><i class="fa-solid fa-filter text-blue-600"></i> Tahun:</span>
                     <form method="GET" action="keuangan.php" class="inline">
                         <input type="hidden" name="tab" value="iuran">
+                        <?php if (!empty($kata_kunci)): ?>
+                            <input type="hidden" name="cari" value="<?= htmlspecialchars($kata_kunci); ?>">
+                        <?php endif; ?>
                         <select name="tahun" onchange="this.form.submit()" class="border border-gray-300 rounded-lg text-xs font-bold py-1.5 px-3 bg-white text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none">
                             <option value="2025" <?= $tahun_aktif == 2025 ? 'selected' : ''; ?>>2025</option>
                             <option value="2026" <?= $tahun_aktif == 2026 ? 'selected' : ''; ?>>2026</option>
                             <option value="2027" <?= $tahun_aktif == 2027 ? 'selected' : ''; ?>>2027</option>
                         </select>
                     </form>
-                    <span class="text-xs text-gray-500 ml-2 hidden sm:inline">Menampilkan format spreadsheet sesuai buku iuran RT.</span>
+
+                    <!-- Form Pencarian Cepat Nama / Blok -->
+                    <form method="GET" action="keuangan.php" class="flex items-center gap-1.5 ml-2">
+                        <input type="hidden" name="tab" value="iuran">
+                        <input type="hidden" name="tahun" value="<?= $tahun_aktif; ?>">
+                        <div class="relative">
+                            <input type="text" name="cari" value="<?= htmlspecialchars($kata_kunci); ?>" placeholder="Cari nama atau blok..." class="border border-gray-300 rounded-lg text-xs py-1.5 pl-7 pr-2 w-36 sm:w-48 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-gray-400 text-xs"></i>
+                        </div>
+                        <button type="submit" class="bg-gray-800 hover:bg-black text-white text-xs font-bold py-1.5 px-2.5 rounded-lg transition">Cari</button>
+                        <?php if (!empty($kata_kunci)): ?>
+                            <a href="keuangan.php?tab=iuran&tahun=<?= $tahun_aktif; ?>" class="text-xs text-red-500 hover:underline"><i class="fa-solid fa-xmark"></i> Reset</a>
+                        <?php endif; ?>
+                    </form>
                 </div>
 
-                <?php if ($can_manage): ?>
                 <div class="flex items-center gap-2">
+                    <?php if ($can_manage): ?>
                     <button onclick="bukaModalBayar()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm flex items-center gap-1.5 transition">
-                        <i class="fa-solid fa-money-bill-wave"></i> Catat Bayar Iuran
+                        <i class="fa-solid fa-money-bill-wave"></i> Catat Bayar
                     </button>
                     <button onclick="bukaModalTambahWarga()" class="bg-gray-800 hover:bg-black text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm flex items-center gap-1.5 transition">
-                        <i class="fa-solid fa-plus"></i> Tambah Blok Warga
+                        <i class="fa-solid fa-plus"></i> Tambah Blok
                     </button>
+                    <?php endif; ?>
+                    <a href="export_iuran.php?tahun=<?= $tahun_aktif; ?>" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-file-excel"></i> Export (.xls)
+                    </a>
                 </div>
-                <?php endif; ?>
             </div>
 
             <!-- Tabel Spreadsheet Kuning Sesuai Gambar -->
             <div class="overflow-x-auto rounded-xl border border-gray-300 shadow-md">
-                <table class="w-full text-xs text-left border-collapse table-auto min-w-[1300px]">
+                <table class="w-full text-xs text-left border-collapse table-auto min-w-[1350px]">
                     <thead class="table-yellow-header">
                         <tr>
                             <th rowspan="2" class="p-2 border border-yellow-600 w-10">NO</th>
                             <th rowspan="2" class="p-2 border border-yellow-600 w-16">BLOK</th>
-                            <th rowspan="2" class="p-2 border border-yellow-600 min-w-[200px]">NAMA</th>
+                            <th rowspan="2" class="p-2 border border-yellow-600 min-w-[220px]">NAMA</th>
                             <th rowspan="2" class="p-2 border border-yellow-600 max-w-[130px] leading-tight">Jumlah Kekurangan Iuran dalam bulan - s/d bulan Des <?= $tahun_aktif - 1; ?></th>
                             <th rowspan="2" class="p-2 border border-yellow-600 max-w-[140px] leading-tight">Jumlah Kekurangan Iuran dalam uang - s/d bulan Des <?= $tahun_aktif - 1; ?></th>
                             <th rowspan="2" class="p-2 border border-yellow-600 max-w-[130px] leading-tight">Jumlah Kekurangan Iuran dalam bulan - s/d bulan Des <?= $tahun_aktif; ?></th>
@@ -358,9 +431,9 @@ $bulan_labels = [
                         if (empty($daftar_iuran)): 
                         ?>
                         <tr>
-                            <td colspan="<?= $can_manage ? 22 : 21; ?>" class="p-6 text-center text-gray-400">
+                            <td colspan="<?= $can_manage ? 22 : 21; ?>" class="p-8 text-center text-gray-400">
                                 <i class="fa-solid fa-folder-open text-3xl mb-2 text-gray-300"></i>
-                                <p>Belum ada data iuran warga untuk tahun <?= $tahun_aktif; ?>.</p>
+                                <p>Tidak ada data iuran yang cocok dengan filter pencarian.</p>
                             </td>
                         </tr>
                         <?php else: ?>
@@ -368,7 +441,9 @@ $bulan_labels = [
                                 $k = $row['kalkulasi'];
                                 if (!$k['is_kosong']) {
                                     $tot_uang_lalu += $k['tunggakan_uang_2025'];
-                                    $tot_harus_bayar += $k['jumlah_harus_dibayar'];
+                                    if (is_numeric($k['jumlah_harus_dibayar'])) {
+                                        $tot_harus_bayar += $k['jumlah_harus_dibayar'];
+                                    }
                                     $tot_sisa_kurang += $k['sisa_kurang_2026'];
                                 }
                             ?>
@@ -376,20 +451,25 @@ $bulan_labels = [
                                 <td class="p-2 border border-gray-300 text-center font-semibold"><?= $no++; ?></td>
                                 <td class="p-2 border border-gray-300 text-center font-bold text-blue-900"><?= htmlspecialchars($row['blok']); ?></td>
                                 <td class="p-2 border border-gray-300 font-medium">
-                                    <?= htmlspecialchars($row['nama']); ?>
-                                    <?php if ($k['is_kosong']): ?>
-                                        <span class="ml-1 text-[10px] bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">Kosong</span>
+                                    <div class="flex items-center justify-between">
+                                        <span><?= htmlspecialchars($row['nama']); ?></span>
+                                        <?php if ($k['is_kosong']): ?>
+                                            <span class="ml-1 text-[10px] bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">Kosong</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <?php if ($can_view_nik && !empty($row['nik'])): ?>
+                                        <span class="block text-[10px] text-gray-400 font-mono">NIK: <?= htmlspecialchars($row['nik']); ?></span>
                                     <?php endif; ?>
                                 </td>
 
                                 <!-- Tunggakan Bulan 2025 -->
                                 <td class="p-2 border border-gray-300 text-center font-mono">
-                                    <?= $k['is_kosong'] ? '-' : $k['tunggakan_bulan_2025']; ?>
+                                    <?= $k['is_kosong'] ? '-' : ($k['tunggakan_bulan_2025'] == 0 ? '-' : $k['tunggakan_bulan_2025']); ?>
                                 </td>
 
                                 <!-- Tunggakan Uang 2025 -->
                                 <td class="p-2 border border-gray-300 text-right font-mono">
-                                    <?php if ($k['is_kosong']): ?>
+                                    <?php if ($k['is_kosong'] || $k['tunggakan_uang_2025'] == 0): ?>
                                         -
                                     <?php else: ?>
                                         <?= $k['tunggakan_uang_2025'] < 0 ? '-' . number_format(abs($k['tunggakan_uang_2025']), 0, ',', '.') : number_format($k['tunggakan_uang_2025'], 0, ',', '.'); ?>
@@ -403,8 +483,8 @@ $bulan_labels = [
 
                                 <!-- Jumlah yang Harus Dibayar 2026 -->
                                 <td class="p-2 border border-gray-300 text-right font-mono font-semibold">
-                                    <?php if ($k['is_kosong']): ?>
-                                        -
+                                    <?php if ($k['is_kosong'] || !is_numeric($k['jumlah_harus_dibayar']) || $k['jumlah_harus_dibayar'] == 0): ?>
+                                        <?= $k['is_kosong'] ? '-' : ($k['jumlah_harus_dibayar'] === 0 ? '0' : '-'); ?>
                                     <?php else: ?>
                                         <?= $k['jumlah_harus_dibayar'] < 0 ? '-' . number_format(abs($k['jumlah_harus_dibayar']), 0, ',', '.') : number_format($k['jumlah_harus_dibayar'], 0, ',', '.'); ?>
                                     <?php endif; ?>
@@ -491,6 +571,83 @@ $bulan_labels = [
                 </table>
             </div>
 
+            <!-- Panel Informasi Transfer BCA & Rekapitulasi Status Hunian (Sesuai Bagian Bawah Gambar) -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-2">
+                <!-- Card Rekening BCA Resmi RT -->
+                <div class="bg-gradient-to-br from-blue-900 via-blue-950 to-indigo-950 text-white rounded-2xl p-5 shadow-lg relative overflow-hidden flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="bg-yellow-400 text-blue-950 text-[10px] font-black uppercase px-2 py-0.5 rounded tracking-wider">Rekening Resmi</span>
+                            <span class="text-xs text-blue-200">Pembayaran Iuran RT dapat melalui Transfer ke:</span>
+                        </div>
+                        <div class="flex items-center gap-3.5">
+                            <div class="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center text-yellow-400 text-2xl font-bold shrink-0">
+                                <i class="fa-solid fa-building-columns"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-extrabold text-base tracking-wide text-white">BANK CENTRAL ASIA (BCA)</h4>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span class="font-mono text-xl font-black text-yellow-300 tracking-wider">7285861195</span>
+                                    <button onclick="navigator.clipboard.writeText('7285861195'); alert('Nomor rekening BCA 7285861195 berhasil disalin!');" class="text-xs bg-white/20 hover:bg-white/30 text-white px-2 py-0.5 rounded transition" title="Salin No Rekening">
+                                        <i class="fa-regular fa-copy"></i> Salin
+                                    </button>
+                                </div>
+                                <p class="text-xs text-blue-200 mt-0.5">Atas Nama: <strong class="text-white font-bold">Maria Suparmijati</strong></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 pt-3 border-t border-white/15 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div class="bg-white/5 p-2.5 rounded-xl">
+                            <span class="text-blue-300 text-[10px] block font-medium">Konfirmasi 1:</span>
+                            <strong class="text-white text-xs">Ibu MARIA.S / MANIK</strong>
+                            <a href="https://wa.me/6281237418441" target="_blank" class="text-emerald-400 block font-mono hover:underline text-[11px] mt-0.5"><i class="fa-brands fa-whatsapp"></i> 081237418441</a>
+                        </div>
+                        <div class="bg-white/5 p-2.5 rounded-xl">
+                            <span class="text-blue-300 text-[10px] block font-medium">Konfirmasi 2:</span>
+                            <strong class="text-white text-xs">Ibu MAYDIWATI</strong>
+                            <a href="https://wa.me/6281250468187" target="_blank" class="text-emerald-400 block font-mono hover:underline text-[11px] mt-0.5"><i class="fa-brands fa-whatsapp"></i> 081250468187</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card Statistik Status Hunian (Kotak Kanan Bawah Spreadsheet) -->
+                <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="font-bold text-gray-800 text-sm flex items-center gap-2">
+                                <i class="fa-solid fa-chart-pie text-yellow-500"></i> Rekapitulasi Status Hunian
+                            </h4>
+                            <span class="text-xs bg-blue-50 text-blue-800 font-bold px-2.5 py-1 rounded-full border border-blue-200">Total 80 Kavling</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2.5 text-xs">
+                            <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                                <div class="text-emerald-700 text-[11px] font-semibold flex items-center gap-1.5"><i class="fa-solid fa-house-user"></i> Penghuni Aktif</div>
+                                <div class="text-2xl font-black text-emerald-800 mt-1"><?= $counts_status['Penghuni'] ?? 64; ?> <span class="text-xs font-normal text-emerald-600">Rumah</span></div>
+                            </div>
+                            <div class="p-3 bg-gray-100 border border-gray-300 rounded-xl">
+                                <div class="text-gray-600 text-[11px] font-semibold flex items-center gap-1.5"><i class="fa-solid fa-door-closed"></i> Kosong (Bebas Tagihan)</div>
+                                <div class="text-2xl font-black text-gray-700 mt-1"><?= $counts_status['Kosong'] ?? 10; ?> <span class="text-xs font-normal text-gray-500">Kavling</span></div>
+                            </div>
+                            <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                                <div class="text-amber-800 text-[11px] font-semibold flex items-center gap-1.5"><i class="fa-solid fa-file-contract"></i> Dikontrak</div>
+                                <div class="text-2xl font-black text-amber-900 mt-1"><?= $counts_status['dikontrak'] ?? 4; ?> <span class="text-xs font-normal text-amber-700">Rumah</span></div>
+                            </div>
+                            <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                                <div class="text-blue-800 text-[11px] font-semibold flex items-center gap-1.5"><i class="fa-solid fa-city"></i> Rumah ke 2</div>
+                                <div class="text-2xl font-black text-blue-900 mt-1"><?= $counts_status['Rumah ke 2'] ?? 2; ?> <span class="text-xs font-normal text-blue-700">Rumah</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3 pt-2.5 border-t border-gray-100 text-[11px] text-gray-500 flex items-center justify-between">
+                        <span>Data tersinkronisasi dengan master kependudukan RT</span>
+                        <a href="export_iuran.php?tahun=<?= $tahun_aktif; ?>" class="text-green-700 font-bold hover:underline flex items-center gap-1">
+                            <i class="fa-solid fa-file-excel"></i> Unduh File Excel Lengkap
+                        </a>
+                    </div>
+                </div>
+            </div>
+
             <!-- Keterangan & Rumus Perhitungan -->
             <div class="bg-blue-50/70 border border-blue-200 rounded-xl p-3.5 text-xs text-blue-900 space-y-1">
                 <div class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-circle-info text-blue-600"></i> Aturan & Rumus Perhitungan Rekap Iuran:</div>
@@ -499,7 +656,7 @@ $bulan_labels = [
                     <li><strong>Kewajiban Bulan <?= $tahun_aktif; ?>:</strong> Dihitung dari <code>Tunggakan Bulan <?= $tahun_aktif - 1; ?> - 12</code> (misal: 0 - 12 = -12 bln; atau -24 - 12 = -36 bln).</li>
                     <li><strong>Jumlah Harus Dibayar:</strong> <code>Kewajiban Bulan × Tarif Iuran Bulanan (Rp <?= number_format($tarif_bulanan, 0, ',', '.'); ?>)</code>.</li>
                     <li><strong>Sisa Kekurangan Iuran:</strong> <code>Jumlah Harus Dibayar + Total Setoran (Jan s/d Des)</code> (angka minus berwarna merah menandakan masih memiliki sisa tunggakan).</li>
-                    <li><strong>Sinkronisasi Kas Otomatis:</strong> Setiap pembayaran iuran yang disimpan dapat otomatis tercatat ke <strong>Buku Kas Umum</strong> sebagai <em>Kas Masuk</em>.</li>
+                    <li><strong>Sinkronisasi Kas Otomatis:</strong> Setiap pembayaran iuran yang disimpan otomatis tercatat ke <strong>Buku Kas Umum</strong> sebagai <em>Kas Masuk</em>.</li>
                 </ul>
             </div>
 
@@ -743,7 +900,7 @@ $bulan_labels = [
 
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">Keterangan Khusus</label>
-                    <input type="text" name="keterangan" placeholder="Kosong / Rumah ke 2 / lainnya" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <input type="text" name="keterangan" placeholder="Kosong / dikontrak / Rumah ke 2 / lainnya" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
                     <p class="text-[11px] text-gray-500 mt-1">Ketik <strong>Kosong</strong> jika rumah tidak berpenghuni agar bebas tagihan iuran.</p>
                 </div>
 
@@ -762,7 +919,7 @@ $bulan_labels = [
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
             <div class="flex justify-between items-center pb-3 border-b border-gray-200">
                 <h3 class="font-bold text-gray-800 text-base flex items-center gap-2">
-                    <i class="fa-solid fa-pen-to-square text-amber-600"></i> Edit Data Warga
+                    <i class="fa-solid fa-pen-to-square text-amber-600"></i> Edit Data Warga & NIK
                 </h3>
                 <button onclick="tutupModalEditWarga()" class="text-gray-400 hover:text-gray-700 text-lg"><i class="fa-solid fa-xmark"></i></button>
             </div>
@@ -788,7 +945,13 @@ $bulan_labels = [
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1">Keterangan</label>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Nomor Induk Kependudukan (NIK)</label>
+                    <input type="text" id="edit_warga_nik" name="nik" placeholder="16 digit NIK" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                    <p class="text-[10px] text-gray-500 mt-1">Dapat diisi NIK asli KTP jika berkas kependudukan telah diterima.</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Keterangan (Kosong / dikontrak / Rumah ke 2)</label>
                     <input type="text" id="edit_warga_keterangan" name="keterangan" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
                 </div>
 
@@ -832,6 +995,7 @@ $bulan_labels = [
             document.getElementById('edit_warga_id').value = row.id;
             document.getElementById('edit_warga_blok').value = row.blok;
             document.getElementById('edit_warga_nama').value = row.nama;
+            document.getElementById('edit_warga_nik').value = row.nik || '';
             document.getElementById('edit_warga_tunggakan').value = row.tunggakan_bulan_lalu;
             document.getElementById('edit_warga_keterangan').value = row.keterangan || '';
             document.getElementById('modalEditWarga').classList.remove('hidden');
