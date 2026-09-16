@@ -59,7 +59,7 @@ while ($r = mysqli_fetch_assoc($query)) {
         <tr style="background-color: #facc15; font-weight: bold; text-align: center;">
             <th rowspan="2" style="border: 1px solid #333; vertical-align: middle;">NO</th>
             <th rowspan="2" style="border: 1px solid #333; vertical-align: middle;">BLOK</th>
-            <th rowspan="2" style="border: 1px solid #333; vertical-align: middle; min-width: 220px;">NAMA</th>
+            <th rowspan="2" style="border: 1px solid #333; vertical-align: middle; min-width: 220px;">NAMA KEPALA KELUARGA</th>
             <?php if ($can_view_nik): ?>
             <th rowspan="2" style="border: 1px solid #333; vertical-align: middle;">NIK</th>
             <?php endif; ?>

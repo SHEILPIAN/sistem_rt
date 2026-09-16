@@ -261,14 +261,58 @@ if (!function_exists('init_iuran_tables')) {
             @mysqli_query($conn, "ALTER TABLE iuran_warga ADD COLUMN nik VARCHAR(20) NULL AFTER warga_id");
         }
 
-        // Cek apakah data sudah lengkap 80 warga
-        $cek_total = @mysqli_query($conn, "SELECT COUNT(*) as total FROM iuran_warga WHERE tahun = 2026");
-        if ($cek_total) {
-            $data_total = mysqli_fetch_assoc($cek_total);
-            if ((int)$data_total['total'] < 80) {
-                // Jalankan sinkronisasi penuh 80 data warga dan iuran
-                sync_warga_dan_iuran_80($conn);
-            }
+        // Auto-seeder 80 warga dinonaktifkan agar database tetap kosong untuk input manual murni
+    }
+}
+
+if (!function_exists('is_kepala_keluarga')) {
+    /**
+     * Memeriksa apakah status hubungan keluarga merupakan Kepala Rumah Tangga / Kepala Keluarga.
+     *
+     * @param string $hubungan_keluarga
+     * @return bool
+     */
+    function is_kepala_keluarga($hubungan_keluarga) {
+        $hub = strtolower(trim($hubungan_keluarga));
+        return (strpos($hub, 'kepala rumah tangga') !== false || strpos($hub, 'kepala keluarga') !== false);
+    }
+}
+
+if (!function_exists('sync_kepala_keluarga_ke_iuran')) {
+    /**
+     * Jika warga berstatus Kepala Rumah Tangga, daftarkan atau perbarui kavling di iuran_warga tahun 2026.
+     *
+     * @param mysqli $conn
+     * @param int $warga_id
+     * @param string $nama
+     * @param string $nik
+     * @param string $alamat_rt
+     * @param string $hubungan_keluarga
+     * @param int $tahun
+     * @return int|bool
+     */
+    function sync_kepala_keluarga_ke_iuran($conn, $warga_id, $nama, $nik, $alamat_rt, $hubungan_keluarga, $tahun = 2026) {
+        if (!$conn || !is_kepala_keluarga($hubungan_keluarga)) {
+            return false;
+        }
+
+        $warga_id = (int)$warga_id;
+        $blok = mysqli_real_escape_string($conn, trim($alamat_rt));
+        $nama = mysqli_real_escape_string($conn, trim($nama));
+        $nik  = mysqli_real_escape_string($conn, trim($nik));
+        $tahun = (int)$tahun;
+
+        // Cek apakah sudah ada kavling / warga_id ini di rekap iuran tahun aktif
+        $cek = mysqli_query($conn, "SELECT id FROM iuran_warga WHERE tahun = $tahun AND (blok = '$blok' OR warga_id = $warga_id) LIMIT 1");
+        if ($cek && mysqli_num_rows($cek) > 0) {
+            $row = mysqli_fetch_assoc($cek);
+            $iuran_id = (int)$row['id'];
+            mysqli_query($conn, "UPDATE iuran_warga SET warga_id = $warga_id, nama = '$nama', nik = '$nik', blok = '$blok' WHERE id = $iuran_id");
+            return $iuran_id;
+        } else {
+            mysqli_query($conn, "INSERT INTO iuran_warga (tahun, blok, warga_id, nik, nama, tunggakan_bulan_lalu, keterangan) 
+                                 VALUES ($tahun, '$blok', $warga_id, '$nik', '$nama', 0, 'Penghuni')");
+            return mysqli_insert_id($conn);
         }
     }
 }

@@ -113,9 +113,31 @@ if (isset($_GET['cari'])) {
                         <p class="text-xs text-gray-600 font-mono mb-1">NIK: <?= $row['nik']; ?></p>
                         <?php endif; ?>
                         
-                        <div class="flex flex-wrap gap-2 mb-2">
+                        <div class="flex flex-wrap gap-1.5 mb-2 items-center">
                             <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200"><i class="fa-solid fa-house"></i> <?= $row['alamat_rt']; ?></span>
                             <span class="text-[10px] <?= ($row['status_warga'] == 'Tetap') ? 'bg-green-100 text-green-700 border-green-200' : 'bg-orange-100 text-orange-700 border-orange-200'; ?> px-2 py-0.5 rounded border font-semibold"><?= $row['status_warga']; ?></span>
+                            <?php if(!empty($row['hubungan_keluarga'])): 
+                                $hub = $row['hubungan_keluarga'];
+                                $badge_style = 'bg-blue-100 text-blue-800 border-blue-200';
+                                $hub_icon = 'fa-user';
+                                if (strpos(strtolower($hub), 'suami') !== false || strpos(strtolower($hub), 'kepala') !== false) {
+                                    $badge_style = 'bg-indigo-100 text-indigo-800 border-indigo-200 font-bold';
+                                    $hub_icon = 'fa-crown';
+                                } elseif (strpos(strtolower($hub), 'istri') !== false) {
+                                    $badge_style = 'bg-pink-100 text-pink-800 border-pink-200';
+                                    $hub_icon = 'fa-heart';
+                                } elseif (strpos(strtolower($hub), 'anak') !== false) {
+                                    $badge_style = 'bg-teal-100 text-teal-800 border-teal-200';
+                                    $hub_icon = 'fa-child';
+                                } elseif (strpos(strtolower($hub), 'janda') !== false) {
+                                    $badge_style = 'bg-amber-100 text-amber-800 border-amber-300 font-medium';
+                                    $hub_icon = 'fa-person-half-dress';
+                                }
+                            ?>
+                                <span class="text-[10px] <?= $badge_style; ?> px-2 py-0.5 rounded border flex items-center gap-1">
+                                    <i class="fa-solid <?= $hub_icon; ?>"></i> <?= htmlspecialchars($hub); ?>
+                                </span>
+                            <?php endif; ?>
                         </div>
 
                         <!-- Status Iuran RT 2026 -->

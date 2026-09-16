@@ -1,5 +1,6 @@
 <?php
 include 'config.php';
+require_once 'iuran_helper.php';
 
 // Pastikan user sudah login
 if (!isset($_SESSION['status_login']) || $_SESSION['status_login'] !== true) {
@@ -21,6 +22,12 @@ if (isset($_POST['simpan'])) {
     $jk = $_POST['jenis_kelamin'];
     $alamat = $_POST['alamat_rt'];
     $status = $_POST['status_warga'];
+    
+    // Status hubungan keluarga
+    $hubungan = $_POST['hubungan_keluarga'] ?? '';
+    if ($hubungan === 'Janda') {
+        $hubungan = $_POST['sub_janda'] ?? 'Janda (Kepala Rumah Tangga)';
+    }
 
     // Proses Upload KTP
     $foto_ktp = $_FILES['foto_ktp']['name'];
@@ -41,13 +48,20 @@ if (isset($_POST['simpan'])) {
     
     if(move_uploaded_file($tmp_ktp, $path_ktp) && move_uploaded_file($tmp_kk, $path_kk)) {
         
-        // Simpan ke database jika upload berhasil (Query diupdate untuk memasukkan tanggal_lahir)
-        $insert = mysqli_query($conn, "INSERT INTO warga (nik, nama, tanggal_lahir, jenis_kelamin, alamat_rt, status_warga, foto_ktp, foto_kk) VALUES ('$nik', '$nama', '$tgl_lahir', '$jk', '$alamat', '$status', '$ktp_baru', '$kk_baru')");
+        // Simpan ke database jika upload berhasil (Query diupdate untuk memasukkan hubungan_keluarga)
+        $insert = mysqli_query($conn, "INSERT INTO warga (nik, nama, tanggal_lahir, jenis_kelamin, alamat_rt, status_warga, hubungan_keluarga, foto_ktp, foto_kk) VALUES ('$nik', '$nama', '$tgl_lahir', '$jk', '$alamat', '$status', '$hubungan', '$ktp_baru', '$kk_baru')");
 
         if ($insert) {
+            $warga_id = mysqli_insert_id($conn);
+            
+            // Jika status adalah Kepala Rumah Tangga, otomatis hubungkan/daftarkan ke Rekap Iuran 2026
+            if (is_kepala_keluarga($hubungan)) {
+                sync_kepala_keluarga_ke_iuran($conn, $warga_id, $nama, $nik, $alamat, $hubungan, 2026);
+            }
+
             echo "<script>alert('Data Warga & Dokumen Berhasil Ditambahkan!'); window.location='warga.php';</script>";
         } else {
-            echo "<script>alert('Data gagal disimpan ke database!');</script>";
+            echo "<script>alert('Data gagal disimpan ke database: " . addslashes(mysqli_error($conn)) . "');</script>";
         }
 
     } else {
@@ -98,11 +112,36 @@ if (isset($_POST['simpan'])) {
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Jenis Kelamin</label>
-                    <select name="jenis_kelamin" required class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    <select name="jenis_kelamin" id="select_jk" required class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 text-sm">
                         <option value="L">Laki-laki</option>
                         <option value="P">Perempuan</option>
                     </select>
                 </div>
+
+                <!-- KOLOM STATUS DALAM KELUARGA -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status dalam Keluarga <span class="text-red-500">*</span></label>
+                    <select name="hubungan_keluarga" id="select_hubungan" required onchange="cekStatusJanda()" class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        <option value="">-- Pilih Status Keluarga --</option>
+                        <option value="Suami (Kepala Rumah Tangga)">Suami (Kepala Rumah Tangga)</option>
+                        <option value="Istri (Mengurus Rumah Tangga)">Istri (Mengurus Rumah Tangga)</option>
+                        <option value="Anak">Anak</option>
+                        <option value="Janda">Janda</option>
+                    </select>
+                </div>
+
+                <!-- KOLOM SELECT TAMBAHAN JIKA STATUS JANDA -->
+                <div id="kolom_sub_janda" class="hidden p-3 bg-amber-50 rounded-xl border border-amber-200 transition-all">
+                    <label class="block text-sm font-bold text-amber-900 mb-1">
+                        <i class="fa-solid fa-person-circle-question"></i> Peran / Status Tambahan Janda <span class="text-red-500">*</span>
+                    </label>
+                    <select name="sub_janda" id="select_sub_janda" class="w-full px-4 py-2 border border-amber-300 rounded-xl focus:ring-amber-500 focus:border-amber-500 text-sm bg-white">
+                        <option value="Janda (Kepala Rumah Tangga)">Janda (Kepala Rumah Tangga - Tercatat di Rekap Iuran)</option>
+                        <option value="Janda (Anggota Keluarga)">Janda (Anggota Keluarga - Ikut Anak / Keluarga Lain)</option>
+                    </select>
+                    <p class="text-[11px] text-amber-700 mt-1">Pilih <strong>Kepala Rumah Tangga</strong> jika bertindak sebagai penanggung jawab utama kavling/rumah.</p>
+                </div>
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Alamat (Blok / No. Rumah)</label>
                     <input type="text" name="alamat_rt" required placeholder="Contoh: Blok A No. 12" class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 text-sm">
@@ -136,5 +175,31 @@ if (isset($_POST['simpan'])) {
         </div>
 
     </div>
+
+    <!-- JavaScript untuk interaksi dinamis kolom Janda & otomatisasi Jenis Kelamin -->
+    <script>
+        function cekStatusJanda() {
+            const selectHubungan = document.getElementById('select_hubungan');
+            const kolomSubJanda = document.getElementById('kolom_sub_janda');
+            const selectSubJanda = document.getElementById('select_sub_janda');
+            const selectJk = document.getElementById('select_jk');
+
+            if (selectHubungan.value === 'Janda') {
+                kolomSubJanda.classList.remove('hidden');
+                selectSubJanda.required = true;
+                selectJk.value = 'P'; // Janda otomatis Perempuan
+            } else {
+                kolomSubJanda.classList.add('hidden');
+                selectSubJanda.required = false;
+
+                // Membantu otomatisasi jenis kelamin agar pengguna tidak salah pilih
+                if (selectHubungan.value === 'Suami (Kepala Rumah Tangga)') {
+                    selectJk.value = 'L';
+                } else if (selectHubungan.value === 'Istri (Mengurus Rumah Tangga)') {
+                    selectJk.value = 'P';
+                }
+            }
+        }
+    </script>
 </body>
 </html>

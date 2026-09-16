@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $can_manage) {
             } else {
                 $st_w = (strtolower($keterangan) === 'dikontrak') ? 'Kontrak' : 'Tetap';
                 mysqli_query($conn, "INSERT INTO warga (nik, nama, alamat_rt, status_warga, jenis_kelamin, hubungan_keluarga) 
-                    VALUES ('$w_nik', '$nama', 'Blok $blok', '$st_w', 'L', 'Kepala Keluarga')");
+                    VALUES ('$w_nik', '$nama', 'Blok $blok', '$st_w', 'L', 'Suami (Kepala Rumah Tangga)')");
                 $w_id = mysqli_insert_id($conn);
             }
 
@@ -402,7 +402,7 @@ $bulan_labels = [
                         <tr>
                             <th rowspan="2" class="p-2 border border-yellow-600 w-10">NO</th>
                             <th rowspan="2" class="p-2 border border-yellow-600 w-16">BLOK</th>
-                            <th rowspan="2" class="p-2 border border-yellow-600 min-w-[220px]">NAMA</th>
+                            <th rowspan="2" class="p-2 border border-yellow-600 min-w-[220px]">NAMA KEPALA KELUARGA</th>
                             <th rowspan="2" class="p-2 border border-yellow-600 max-w-[130px] leading-tight">Jumlah Kekurangan Iuran dalam bulan - s/d bulan Des <?= $tahun_aktif - 1; ?></th>
                             <th rowspan="2" class="p-2 border border-yellow-600 max-w-[140px] leading-tight">Jumlah Kekurangan Iuran dalam uang - s/d bulan Des <?= $tahun_aktif - 1; ?></th>
                             <th rowspan="2" class="p-2 border border-yellow-600 max-w-[130px] leading-tight">Jumlah Kekurangan Iuran dalam bulan - s/d bulan Des <?= $tahun_aktif; ?></th>

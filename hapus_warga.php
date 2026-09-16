@@ -24,10 +24,11 @@ if (isset($_GET['id'])) {
         }
     }
 
-    // 2. Hapus data warga dari database
+    // 2. Hapus data warga dari database dan rekap iuran terkait jika ada
     $hapus = mysqli_query($conn, "DELETE FROM warga WHERE id='$id'");
-
     if ($hapus) {
+        // Hapus juga baris iuran terkait jika warga ini terdaftar sebagai kepala keluarga
+        mysqli_query($conn, "DELETE FROM iuran_warga WHERE warga_id='$id'");
         echo "<script>alert('Data warga berhasil dihapus!'); window.location='warga.php';</script>";
     } else {
         echo "<script>alert('Gagal menghapus data!'); window.location='warga.php';</script>";

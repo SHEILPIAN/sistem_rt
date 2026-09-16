@@ -22,12 +22,16 @@ $q_rekap = mysqli_query($conn, "SELECT
     FROM warga");
 $rekap = mysqli_fetch_assoc($q_rekap);
 
-// MENGAMBIL DATA WARGA (Dikelompokkan berdasarkan No KK, lalu diurutkan Kepala Keluarga -> Istri -> Anak)
-$kata_kunci = isset($_GET['cari']) ? $_GET['cari'] : "";
+require_once 'iuran_helper.php';
+
+// MENGAMBIL DATA WARGA (Dikelompokkan berdasarkan Alamat/No KK, diurutkan Kepala Keluarga -> Istri -> Anak)
+$kata_kunci = isset($_GET['cari']) ? mysqli_real_escape_string($conn, $_GET['cari']) : "";
+$order_field = "FIELD(hubungan_keluarga, 'Suami (Kepala Rumah Tangga)', 'Janda (Kepala Rumah Tangga)', 'Kepala Keluarga', 'Istri (Mengurus Rumah Tangga)', 'Anak', 'Janda (Anggota Keluarga)') ASC, tanggal_lahir ASC";
+
 if ($kata_kunci != "") {
-    $query = mysqli_query($conn, "SELECT *, TIMESTAMPDIFF(YEAR, tanggal_lahir, CURDATE()) AS umur FROM warga WHERE nama LIKE '%$kata_kunci%' OR nik LIKE '%$kata_kunci%' ORDER BY no_kk ASC, FIELD(hubungan_keluarga, 'Ayah', 'Ibu', 'Anak') ASC, nama ASC");
+    $query = mysqli_query($conn, "SELECT *, TIMESTAMPDIFF(YEAR, tanggal_lahir, CURDATE()) AS umur FROM warga WHERE nama LIKE '%$kata_kunci%' OR nik LIKE '%$kata_kunci%' OR alamat_rt LIKE '%$kata_kunci%' ORDER BY alamat_rt ASC, $order_field");
 } else {
-    $query = mysqli_query($conn, "SELECT *, TIMESTAMPDIFF(YEAR, tanggal_lahir, CURDATE()) AS umur FROM warga ORDER BY no_kk ASC, FIELD(hubungan_keluarga, 'Kepala Keluarga', 'Ayah', 'Suami', 'Ibu', 'Istri', 'Anak') ASC, tanggal_lahir ASC");
+    $query = mysqli_query($conn, "SELECT *, TIMESTAMPDIFF(YEAR, tanggal_lahir, CURDATE()) AS umur FROM warga ORDER BY alamat_rt ASC, $order_field");
 }
 ?>
 
@@ -84,7 +88,7 @@ if ($kata_kunci != "") {
             <!-- mso-number-format agar angka panjang tidak error di Excel -->
             <td style="mso-number-format:'\@'; vertical-align: top;"><?= $row['no_kk']; ?></td>
             <td style="mso-number-format:'\@';"><?= $row['nik']; ?></td>
-            <td style="font-weight: <?= ($row['hubungan_keluarga'] == 'Ayah' || $row['hubungan_keluarga'] == 'Kepala Keluarga') ? 'bold' : 'normal'; ?>;">
+            <td style="font-weight: <?= is_kepala_keluarga($row['hubungan_keluarga'] ?? '') ? 'bold' : 'normal'; ?>;">
                 <?= $row['nama']; ?>
             </td>
             <td><?= $row['hubungan_keluarga']; ?></td>
