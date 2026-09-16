@@ -107,7 +107,7 @@ if (isset($_GET['cari'])) {
                     <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xl shrink-0 mt-1 border border-blue-200">
                         <i class="fa-solid <?= ($row['jenis_kelamin'] == 'L') ? 'fa-user-tie' : 'fa-user'; ?>"></i>
                     </div>
-                    <div class="w-full pr-8">
+                    <div class="w-full pr-20">
                         <h3 class="font-bold text-gray-800 text-sm"><?= $row['nama']; ?></h3>
                         <?php if (has_permission('view_nik')): ?>
                         <p class="text-xs text-gray-600 font-mono mb-1">NIK: <?= $row['nik']; ?></p>
@@ -200,12 +200,20 @@ if (isset($_GET['cari'])) {
                         <?php endif; ?>
                     </div>
 
-                    <!-- Tombol Hapus (Hanya Muncul untuk Admin) -->
-                    <?php if(has_permission('hapus_warga')): ?>
-                    <a href="hapus_warga.php?id=<?= $row['id']; ?>" onclick="return confirm('Peringatan: Yakin ingin menghapus permanen data <?= $row['nama']; ?> beserta fotonya?');" class="absolute top-3 right-3 text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 w-8 h-8 flex items-center justify-center rounded-lg transition border border-red-100 shadow-sm">
-                        <i class="fa-solid fa-trash-can text-sm"></i>
-                    </a>
-                    <?php endif; ?>
+                    <!-- Tombol Aksi: Edit & Hapus -->
+                    <div class="absolute top-3 right-3 flex items-center gap-1.5">
+                        <?php if(has_permission('edit_warga')): ?>
+                        <a href="edit_warga.php?id=<?= $row['id']; ?>" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 w-8 h-8 flex items-center justify-center rounded-lg transition border border-blue-200 shadow-sm" title="Edit Data Warga">
+                            <i class="fa-solid fa-pen-to-square text-sm"></i>
+                        </a>
+                        <?php endif; ?>
+
+                        <?php if(has_permission('hapus_warga')): ?>
+                        <a href="hapus_warga.php?id=<?= $row['id']; ?>" onclick="return confirm('Peringatan: Yakin ingin menghapus permanen data <?= htmlspecialchars(addslashes($row['nama'])); ?> beserta fotonya?');" class="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 w-8 h-8 flex items-center justify-center rounded-lg transition border border-red-100 shadow-sm" title="Hapus Data Warga">
+                            <i class="fa-solid fa-trash-can text-sm"></i>
+                        </a>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <?php endwhile; ?>
             <?php else: ?>
