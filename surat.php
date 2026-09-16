@@ -12,7 +12,7 @@ if ($_SESSION['role'] == 'warga') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Layanan Surat - RT 5</title>
+    <title>Layanan Surat - RT 31</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -26,10 +26,13 @@ if ($_SESSION['role'] == 'warga') {
             <h1 class="font-bold text-lg">Layanan Surat</h1>
         </div>
 
-        <!-- Tombol Tambah Request Surat -->
-        <div class="p-4">
+        <!-- Tombol Aksi Surat -->
+        <div class="p-4 space-y-2">
             <a href="tambah_surat.php" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl flex justify-center items-center gap-2 shadow-md transition">
                 <i class="fa-solid fa-envelope-open-text"></i> Ajukan Surat Pengantar
+            </a>
+            <a href="export_sktm.php?blangko=1" target="_blank" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold py-2.5 rounded-xl flex justify-center items-center gap-2 shadow-sm transition text-xs">
+                <i class="fa-solid fa-print text-slate-600"></i> Cetak Blangko SKTM Kosong
             </a>
         </div>
 
@@ -66,7 +69,11 @@ if ($_SESSION['role'] == 'warga') {
                     </div>
                     <?php elseif($row['status_surat'] == 'Selesai'): ?>
                     <div class="flex gap-2 mt-2">
-                        <a href="export_surat.php?id=<?= $row['id']; ?>" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-[10px] font-bold shadow-sm transition flex items-center gap-1"><i class="fa-solid fa-print"></i> Cetak Surat PDF</a>
+                        <?php if (stripos($row['jenis_surat'], 'tidak mampu') !== false || stripos($row['jenis_surat'], 'sktm') !== false): ?>
+                            <a href="export_sktm.php?id=<?= $row['id']; ?>" target="_blank" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md text-[10px] font-bold shadow-sm transition flex items-center gap-1"><i class="fa-solid fa-file-pdf"></i> Cetak SKTM PDF</a>
+                        <?php else: ?>
+                            <a href="export_surat.php?id=<?= $row['id']; ?>" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-[10px] font-bold shadow-sm transition flex items-center gap-1"><i class="fa-solid fa-print"></i> Cetak Surat PDF</a>
+                        <?php endif; ?>
                     </div>
                     <?php else: ?>
                     <div></div>

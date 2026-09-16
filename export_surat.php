@@ -19,6 +19,12 @@ $data = mysqli_fetch_assoc($query);
 if (!$data || $data['status_surat'] != 'Selesai') {
     die("Surat tidak valid atau belum disetujui!");
 }
+
+// Jika surat adalah jenis SKTM, arahkan ke format resmi export_sktm.php
+if (stripos($data['jenis_surat'], 'tidak mampu') !== false || stripos($data['jenis_surat'], 'sktm') !== false) {
+    header("Location: export_sktm.php?id=" . urlencode($id));
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">

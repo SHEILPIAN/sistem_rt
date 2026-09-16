@@ -84,6 +84,32 @@ if (!function_exists('init_schema_updates')) {
                 @mysqli_query($conn, "ALTER TABLE iuran_warga MODIFY COLUMN blok VARCHAR(50) NOT NULL");
             }
         }
+        // 4. Kolom pendukung permohonan SKTM pada tabel surat
+        $cols_surat = [
+            'nomor_surat'       => "VARCHAR(50) NULL AFTER jenis_surat",
+            'tempat_lahir'      => "VARCHAR(50) NULL AFTER nik_pemohon",
+            'tanggal_lahir'     => "DATE NULL AFTER tempat_lahir",
+            'jenis_kelamin'     => "VARCHAR(20) NULL AFTER tanggal_lahir",
+            'pekerjaan'         => "VARCHAR(50) NULL AFTER jenis_kelamin",
+            'agama'             => "VARCHAR(20) NULL AFTER pekerjaan",
+            'status_perkawinan' => "VARCHAR(30) NULL AFTER agama",
+            'jalan'             => "VARCHAR(100) NULL AFTER status_perkawinan",
+            'blok'              => "VARCHAR(50) NULL AFTER jalan",
+            'no_rumah'          => "VARCHAR(20) NULL AFTER blok",
+            'alamat'            => "TEXT NULL AFTER no_rumah",
+        ];
+        foreach ($cols_surat as $cs => $cdef) {
+            $chk = @mysqli_query($conn, "SHOW COLUMNS FROM surat LIKE '$cs'");
+            if ($chk && mysqli_num_rows($chk) == 0) {
+                @mysqli_query($conn, "ALTER TABLE surat ADD COLUMN $cs $cdef");
+            }
+        }
+        $chk_status = @mysqli_query($conn, "SHOW COLUMNS FROM surat LIKE 'status_surat'");
+        if ($chk_status && $rs = mysqli_fetch_assoc($chk_status)) {
+            if (strpos(strtolower($rs['Type']), 'enum') !== false) {
+                @mysqli_query($conn, "ALTER TABLE surat MODIFY COLUMN status_surat VARCHAR(30) DEFAULT 'Menunggu'");
+            }
+        }
     }
 }
 init_schema_updates($conn);
