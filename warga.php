@@ -87,7 +87,7 @@ if (isset($_GET['cari'])) {
                     </div>
                     <div class="w-full pr-8">
                         <h3 class="font-bold text-gray-800 text-sm"><?= $row['nama']; ?></h3>
-                        <p class="text-xs text-gray-600 font-mono mb-1">NIK: <?= $row['nik']; ?></p>
+                        <!-- <p class="text-xs text-gray-600 font-mono mb-1">NIK: <?= $row['nik']; ?></p> -->
                         
                         <div class="flex gap-2 mb-2">
                             <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200"><i class="fa-solid fa-house"></i> <?= $row['alamat_rt']; ?></span>
