@@ -11,6 +11,7 @@ if (!isset($_SESSION['status_login']) || $_SESSION['status_login'] !== true) {
 if (isset($_POST['simpan'])) {
     $nomor_surat      = mysqli_real_escape_string($conn, $_POST['nomor_surat']);
     $nama             = mysqli_real_escape_string($conn, $_POST['nama_almarhum']);
+    $nik              = mysqli_real_escape_string($conn, $_POST['nik'] ?? '');
     $tempat_lahir     = mysqli_real_escape_string($conn, $_POST['tempat_lahir']);
     $tanggal_lahir    = mysqli_real_escape_string($conn, $_POST['tanggal_lahir']);
     $jk               = mysqli_real_escape_string($conn, $_POST['jenis_kelamin']);
@@ -22,6 +23,8 @@ if (isset($_POST['simpan'])) {
     
     $hari_wafat       = mysqli_real_escape_string($conn, $_POST['hari_wafat']);
     $tanggal_wafat    = mysqli_real_escape_string($conn, $_POST['tanggal_wafat']);
+    $pukul_wafat      = mysqli_real_escape_string($conn, $_POST['pukul_wafat'] ?? '');
+    $tutup_usia       = mysqli_real_escape_string($conn, $_POST['tutup_usia'] ?? '');
     $tempat_kematian  = mysqli_real_escape_string($conn, $_POST['tempat_kematian']);
     $sebab_kematian   = mysqli_real_escape_string($conn, $_POST['sebab_kematian']);
     
@@ -30,14 +33,14 @@ if (isset($_POST['simpan'])) {
 
     try {
         $insert = mysqli_query($conn, "INSERT INTO kematian (
-            nomor_surat, nama_almarhum, tempat_lahir, tanggal_lahir, jenis_kelamin, 
+            nomor_surat, nama_almarhum, nik, tempat_lahir, tanggal_lahir, jenis_kelamin, 
             kewarganegaraan, agama, status_perkawinan, pekerjaan, alamat, 
-            hari_wafat, tanggal_wafat, tempat_kematian, sebab_kematian, 
+            hari_wafat, tanggal_wafat, pukul_wafat, tutup_usia, tempat_kematian, sebab_kematian, 
             nama_pelapor, hubungan_pelapor
         ) VALUES (
-            '$nomor_surat', '$nama', '$tempat_lahir', '$tanggal_lahir', '$jk', 
+            '$nomor_surat', '$nama', '$nik', '$tempat_lahir', '$tanggal_lahir', '$jk', 
             '$kewarganegaraan', '$agama', '$status_perkawinan', '$pekerjaan', '$alamat', 
-            '$hari_wafat', '$tanggal_wafat', '$tempat_kematian', '$sebab_kematian', 
+            '$hari_wafat', '$tanggal_wafat', '$pukul_wafat', '$tutup_usia', '$tempat_kematian', '$sebab_kematian', 
             '$nama_pelapor', '$hubungan_pelapor'
         )");
 
@@ -84,10 +87,16 @@ if (isset($_POST['simpan'])) {
                 <hr class="my-3 border-gray-200">
                 <p class="text-xs font-bold text-blue-900 uppercase tracking-wider">Biodata Almarhum / Almarhumah</p>
 
-                <!-- Nama -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
-                    <input type="text" name="nama_almarhum" required placeholder="Masukkan nama..." class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-slate-500 focus:border-slate-500 text-sm">
+                <!-- Nama & NIK -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
+                        <input type="text" name="nama_almarhum" required placeholder="Masukkan nama..." class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-slate-500 focus:border-slate-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">NIK (Nomor Induk Kependudukan)</label>
+                        <input type="number" name="nik" placeholder="16 digit NIK..." class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-slate-500 focus:border-slate-500 text-sm font-mono">
+                    </div>
                 </div>
 
                 <!-- Tempat & Tanggal Lahir -->
@@ -156,7 +165,7 @@ if (isset($_POST['simpan'])) {
                 <hr class="my-3 border-gray-200">
                 <p class="text-xs font-bold text-blue-900 uppercase tracking-wider">Keterangan Meninggal Dunia</p>
 
-                <!-- Hari & Tanggal Wafat -->
+                <!-- Hari, Tanggal, Pukul Wafat & Tutup Usia -->
                 <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Hari Wafat</label>
@@ -173,6 +182,17 @@ if (isset($_POST['simpan'])) {
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Wafat</label>
                         <input type="date" name="tanggal_wafat" required class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-slate-500 focus:border-slate-500 text-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Pukul / Jam Wafat</label>
+                        <input type="text" name="pukul_wafat" placeholder="Contoh: 10:30 WIB" class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-slate-500 focus:border-slate-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tutup Usia</label>
+                        <input type="text" name="tutup_usia" placeholder="Contoh: 65 Tahun" class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-slate-500 focus:border-slate-500 text-sm">
                     </div>
                 </div>
 

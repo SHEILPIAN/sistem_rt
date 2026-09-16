@@ -21,11 +21,14 @@ $query = mysqli_query($conn, "SELECT * FROM kematian ORDER BY tanggal_wafat DESC
             <h1 class="font-bold text-lg">Data Kematian</h1>
         </div>
 
-        <!-- Tombol Tambah -->
-        <div class="p-4">
+        <!-- Tombol Tambah & Cetak Blangko -->
+        <div class="p-4 space-y-2">
             <?php if(in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])): ?>
             <a href="tambah_kematian.php" class="w-full bg-slate-700 hover:bg-slate-800 text-white font-bold py-3 rounded-xl flex justify-center items-center gap-2 shadow-md transition">
                 <i class="fa-solid fa-plus"></i> Tambah Data Kematian
+            </a>
+            <a href="export_surat_kematian.php?blangko=1" target="_blank" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold py-2.5 rounded-xl flex justify-center items-center gap-2 shadow-sm transition text-xs">
+                <i class="fa-solid fa-print text-slate-600"></i> Cetak Blangko Surat Kematian Kosong
             </a>
             <?php endif; ?>
         </div>
@@ -48,7 +51,7 @@ $query = mysqli_query($conn, "SELECT * FROM kematian ORDER BY tanggal_wafat DESC
 
                 <!-- Tombol Cetak Surat Kematian PDF -->
                 <div class="border-t border-gray-100 pt-2 mt-1 text-right">
-                    <a href="export_surat_kematian.php?id=<?= $row['id']; ?>" class="inline-block bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold py-1.5 px-3 rounded-md shadow-sm transition">
+                    <a href="export_surat_kematian.php?id=<?= $row['id']; ?>" target="_blank" class="inline-block bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold py-1.5 px-3 rounded-md shadow-sm transition">
                         <i class="fa-solid fa-file-pdf"></i> Cetak Surat PDF
                     </a>
                 </div>
