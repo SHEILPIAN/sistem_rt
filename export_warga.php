@@ -1,9 +1,9 @@
 <?php
 include 'config.php';
 
-// Pastikan hanya admin yang bisa mendownload laporan
-if (!isset($_SESSION['status_login']) || !in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])) {
-    header("Location: login.php");
+// Pastikan hanya role dengan izin export_warga (ketua rt & sekretaris) yang bisa mendownload laporan
+if (!isset($_SESSION['status_login']) || !has_permission('export_warga')) {
+    header("Location: warga.php");
     exit;
 }
 

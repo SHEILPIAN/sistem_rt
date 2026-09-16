@@ -7,11 +7,8 @@ if (!isset($_SESSION['status_login']) || $_SESSION['status_login'] !== true) {
     exit;
 }
 
-// Tolak akses jika yang masuk bukan ketua rt
-if ($_SESSION['role'] != 'ketua rt') {
-    echo "<script>alert('Akses Ditolak! Hanya Ketua RT (Superadmin) yang bisa menambah user.'); window.location='index.php';</script>";
-    exit;
-}
+// Tolak akses jika tidak memiliki izin manage_users (hanya ketua rt)
+require_permission('manage_users', 'index.php', 'Akses Ditolak! Hanya Ketua RT (Superadmin) yang bisa menambah user.');
 
 // Proses Simpan Data
 if (isset($_POST['simpan'])) {

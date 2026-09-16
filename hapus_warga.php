@@ -2,9 +2,9 @@
 session_start();
 include 'config.php';
 
-// Pastikan hanya admin yang bisa menghapus data
-if (!isset($_SESSION['status_login']) || !in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])) {
-    header("Location: login.php");
+// Pastikan hanya role dengan izin hapus_warga yang bisa menghapus data
+if (!isset($_SESSION['status_login']) || !has_permission('hapus_warga')) {
+    header("Location: warga.php");
     exit;
 }
 

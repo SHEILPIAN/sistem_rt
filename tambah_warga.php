@@ -7,8 +7,8 @@ if (!isset($_SESSION['status_login']) || $_SESSION['status_login'] !== true) {
     exit;
 }
 
-// Tolak akses jika yang masuk bukan admin
-if (!in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])) {
+// Tolak akses jika tidak memiliki izin tambah_warga
+if (!has_permission('tambah_warga')) {
     echo "<script>alert('Akses Ditolak! Hanya Pengurus RT yang bisa menambah data ini.'); window.location='warga.php';</script>";
     exit;
 }
@@ -35,6 +35,10 @@ if (isset($_POST['simpan'])) {
     $path_kk = "uploads/" . $kk_baru;
 
     // Pindahkan file dari penyimpanan sementara ke folder uploads
+    if (!is_dir('uploads')) {
+        mkdir('uploads', 0777, true);
+    }
+    
     if(move_uploaded_file($tmp_ktp, $path_ktp) && move_uploaded_file($tmp_kk, $path_kk)) {
         
         // Simpan ke database jika upload berhasil (Query diupdate untuk memasukkan tanggal_lahir)
@@ -47,7 +51,9 @@ if (isset($_POST['simpan'])) {
         }
 
     } else {
-        echo "<script>alert('Gagal mengunggah foto KTP atau KK! Pastikan folder uploads sudah dibuat.');</script>";
+        $error_ktp = $_FILES['foto_ktp']['error'] ?? 'Unknown';
+        $error_kk = $_FILES['foto_kk']['error'] ?? 'Unknown';
+        echo "<script>alert('Gagal mengunggah foto KTP atau KK! (Kode Error KTP: $error_ktp, KK: $error_kk)');</script>";
     }
 }
 ?>

@@ -1,6 +1,11 @@
 <?php
 include 'config.php';
-$query = mysqli_query($conn, "SELECT * FROM surat ORDER BY tanggal_request DESC") or die(mysqli_error($conn));
+if ($_SESSION['role'] == 'warga') {
+    $nama_user = mysqli_real_escape_string($conn, $_SESSION['nama_lengkap']);
+    $query = mysqli_query($conn, "SELECT * FROM surat WHERE nama_pemohon = '$nama_user' ORDER BY tanggal_request DESC") or die(mysqli_error($conn));
+} else {
+    $query = mysqli_query($conn, "SELECT * FROM surat ORDER BY tanggal_request DESC") or die(mysqli_error($conn));
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -23,11 +28,9 @@ $query = mysqli_query($conn, "SELECT * FROM surat ORDER BY tanggal_request DESC"
 
         <!-- Tombol Tambah Request Surat -->
         <div class="p-4">
-            <?php if(in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])): ?>
             <a href="tambah_surat.php" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl flex justify-center items-center gap-2 shadow-md transition">
                 <i class="fa-solid fa-envelope-open-text"></i> Ajukan Surat Pengantar
             </a>
-            <?php endif; ?>
         </div>
 
         <!-- List Data Surat -->
@@ -41,11 +44,13 @@ $query = mysqli_query($conn, "SELECT * FROM surat ORDER BY tanggal_request DESC"
                         </div>
                         <div>
                             <h3 class="font-bold text-gray-800 text-sm"><?= $row['jenis_surat']; ?></h3>
-                            <p class="text-[11px] text-gray-500"><?= $row['nama_pemohon']; ?> (NIK: <?= $row['nik_pemohon']; ?>)</p>
+                            <p class="text-[11px] text-gray-500"><?= $row['nama_pemohon']; ?><?php if (has_permission('view_nik')): ?> (NIK: <?= $row['nik_pemohon']; ?>)<?php endif; ?></p>
                         </div>
                     </div>
                     <?php if($row['status_surat'] == 'Selesai'): ?>
                         <span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap"><i class="fa-solid fa-check-double"></i> Selesai</span>
+                    <?php elseif($row['status_surat'] == 'Ditolak'): ?>
+                        <span class="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap"><i class="fa-solid fa-ban"></i> Ditolak</span>
                     <?php else: ?>
                         <span class="bg-yellow-100 text-yellow-700 text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap"><i class="fa-solid fa-clock rotate-180"></i> Menunggu</span>
                     <?php endif; ?>
@@ -53,7 +58,21 @@ $query = mysqli_query($conn, "SELECT * FROM surat ORDER BY tanggal_request DESC"
                 <div class="bg-gray-50 p-2 rounded border border-gray-100 mt-2">
                     <p class="text-xs text-gray-600"><strong>Keperluan:</strong> <?= $row['keperluan']; ?></p>
                 </div>
-                <p class="text-[9px] text-gray-400 text-right mt-2"><?= date('d M Y, H:i', strtotime($row['tanggal_request'])); ?></p>
+                <div class="flex justify-between items-end mt-2">
+                    <?php if(has_permission('approve_surat') && $row['status_surat'] == 'Menunggu'): ?>
+                    <div class="flex gap-2 mt-2">
+                        <a href="update_surat.php?id=<?= $row['id']; ?>&status=Selesai" onclick="return confirm('Tandai pengajuan ini sebagai Selesai?')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md text-[10px] font-bold shadow-sm transition flex items-center gap-1"><i class="fa-solid fa-check"></i> Selesai</a>
+                        <a href="update_surat.php?id=<?= $row['id']; ?>&status=Ditolak" onclick="return confirm('Tolak pengajuan surat ini?')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md text-[10px] font-bold shadow-sm transition flex items-center gap-1"><i class="fa-solid fa-xmark"></i> Tolak</a>
+                    </div>
+                    <?php elseif($row['status_surat'] == 'Selesai'): ?>
+                    <div class="flex gap-2 mt-2">
+                        <a href="export_surat.php?id=<?= $row['id']; ?>" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-[10px] font-bold shadow-sm transition flex items-center gap-1"><i class="fa-solid fa-print"></i> Cetak Surat PDF</a>
+                    </div>
+                    <?php else: ?>
+                    <div></div>
+                    <?php endif; ?>
+                    <p class="text-[9px] text-gray-400 text-right mt-2"><?= date('d M Y, H:i', strtotime($row['tanggal_request'])); ?></p>
+                </div>
             </div>
             <?php endwhile; ?>
             

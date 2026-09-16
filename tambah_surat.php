@@ -3,17 +3,22 @@ include 'config.php';
 
 // Proses Simpan Data
 if (isset($_POST['simpan'])) {
-    $nama = $_POST['nama_pemohon'];
-    $nik = $_POST['nik_pemohon'];
-    $jenis = $_POST['jenis_surat'];
-    $keperluan = $_POST['keperluan'];
+    $nama = mysqli_real_escape_string($conn, $_POST['nama_pemohon']);
+    $nik = mysqli_real_escape_string($conn, $_POST['nik_pemohon']);
+    $jenis = mysqli_real_escape_string($conn, $_POST['jenis_surat']);
+    $keperluan = mysqli_real_escape_string($conn, $_POST['keperluan']);
     
-    $insert = mysqli_query($conn, "INSERT INTO surat (nama_pemohon, nik_pemohon, jenis_surat, keperluan) VALUES ('$nama', '$nik', '$jenis', '$keperluan')");
+    try {
+        $insert = mysqli_query($conn, "INSERT INTO surat (nama_pemohon, nik_pemohon, jenis_surat, keperluan) VALUES ('$nama', '$nik', '$jenis', '$keperluan')");
 
-    if ($insert) {
-        echo "<script>alert('Pengajuan Surat Berhasil Dikirim! Silakan tunggu konfirmasi RT.'); window.location='surat.php';</script>";
-    } else {
-        echo "<script>alert('Gagal mengirim pengajuan surat!');</script>";
+        if ($insert) {
+            echo "<script>alert('Pengajuan Surat Berhasil Dikirim! Silakan tunggu konfirmasi RT.'); window.location='surat.php';</script>";
+        } else {
+            echo "<script>alert('Gagal mengirim pengajuan surat!');</script>";
+        }
+    } catch (Exception $e) {
+        $err = addslashes($e->getMessage());
+        echo "<script>alert('Error: $err');</script>";
     }
 }
 ?>
@@ -41,7 +46,7 @@ if (isset($_POST['simpan'])) {
             <form action="" method="POST" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap Pemohon</label>
-                    <input type="text" name="nama_pemohon" required class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                    <input type="text" name="nama_pemohon" value="<?= $_SESSION['role'] == 'warga' ? $_SESSION['nama_lengkap'] : ''; ?>" <?= $_SESSION['role'] == 'warga' ? 'readonly' : ''; ?> required class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 text-sm <?= $_SESSION['role'] == 'warga' ? 'bg-gray-100 cursor-not-allowed' : ''; ?>">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">NIK Pemohon</label>

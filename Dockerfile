@@ -8,4 +8,4 @@ RUN docker-php-ext-install mysqli
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "php -S 0.0.0.0:${PORT:-8080} -t /app"]
+CMD ["sh", "-c", "php -d upload_max_filesize=20M -d post_max_size=25M -S 0.0.0.0:${PORT:-8080} -t /app"]

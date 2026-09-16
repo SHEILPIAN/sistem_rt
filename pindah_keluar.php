@@ -23,7 +23,7 @@ $query = mysqli_query($conn, "SELECT * FROM pindah_keluar ORDER BY tanggal_pinda
 
         <!-- Tombol Tambah -->
         <div class="p-4">
-            <?php if(in_array($_SESSION['role'], ['ketua rt', 'sekretaris'])): ?>
+            <?php if(has_permission('manage_mutasi')): ?>
             <a href="tambah_pindah_keluar.php" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-xl flex justify-center items-center gap-2 shadow-md transition">
                 <i class="fa-solid fa-plus"></i> Tambah Warga Keluar
             </a>
@@ -40,7 +40,7 @@ $query = mysqli_query($conn, "SELECT * FROM pindah_keluar ORDER BY tanggal_pinda
                     </div>
                     <div>
                         <h3 class="font-bold text-gray-800 text-sm"><?= $row['nama']; ?></h3>
-                        <p class="text-[11px] text-gray-500">Tgl Keluar: <?= date('d M Y', strtotime($row['tanggal_pindah'])); ?> • NIK: <?= $row['nik']; ?></p>
+                        <p class="text-[11px] text-gray-500">Tgl Keluar: <?= date('d M Y', strtotime($row['tanggal_pindah'])); ?><?php if (has_permission('view_nik')): ?> • NIK: <?= $row['nik']; ?><?php endif; ?></p>
                         <p class="text-[10px] text-gray-400">Tujuan: <?= $row['tujuan_alamat']; ?></p>
                     </div>
                 </div>

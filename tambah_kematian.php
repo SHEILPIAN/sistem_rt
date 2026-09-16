@@ -9,41 +9,46 @@ if (!isset($_SESSION['status_login']) || $_SESSION['status_login'] !== true) {
 
 // Proses Simpan Data
 if (isset($_POST['simpan'])) {
-    $nomor_surat      = $_POST['nomor_surat'];
-    $nama             = $_POST['nama_almarhum'];
-    $tempat_lahir     = $_POST['tempat_lahir'];
-    $tanggal_lahir    = $_POST['tanggal_lahir'];
-    $jk               = $_POST['jenis_kelamin'];
-    $kewarganegaraan  = $_POST['kewarganegaraan'];
-    $agama            = $_POST['agama'];
-    $status_perkawinan= $_POST['status_perkawinan'];
-    $pekerjaan        = $_POST['pekerjaan'];
-    $alamat           = $_POST['alamat'];
+    $nomor_surat      = mysqli_real_escape_string($conn, $_POST['nomor_surat']);
+    $nama             = mysqli_real_escape_string($conn, $_POST['nama_almarhum']);
+    $tempat_lahir     = mysqli_real_escape_string($conn, $_POST['tempat_lahir']);
+    $tanggal_lahir    = mysqli_real_escape_string($conn, $_POST['tanggal_lahir']);
+    $jk               = mysqli_real_escape_string($conn, $_POST['jenis_kelamin']);
+    $kewarganegaraan  = mysqli_real_escape_string($conn, $_POST['kewarganegaraan']);
+    $agama            = mysqli_real_escape_string($conn, $_POST['agama']);
+    $status_perkawinan= mysqli_real_escape_string($conn, $_POST['status_perkawinan']);
+    $pekerjaan        = mysqli_real_escape_string($conn, $_POST['pekerjaan']);
+    $alamat           = mysqli_real_escape_string($conn, $_POST['alamat']);
     
-    $hari_wafat       = $_POST['hari_wafat'];
-    $tanggal_wafat    = $_POST['tanggal_wafat'];
-    $tempat_kematian  = $_POST['tempat_kematian'];
-    $sebab_kematian   = $_POST['sebab_kematian'];
+    $hari_wafat       = mysqli_real_escape_string($conn, $_POST['hari_wafat']);
+    $tanggal_wafat    = mysqli_real_escape_string($conn, $_POST['tanggal_wafat']);
+    $tempat_kematian  = mysqli_real_escape_string($conn, $_POST['tempat_kematian']);
+    $sebab_kematian   = mysqli_real_escape_string($conn, $_POST['sebab_kematian']);
     
-    $nama_pelapor     = $_POST['nama_pelapor'];
-    $hubungan_pelapor = $_POST['hubungan_pelapor'];
+    $nama_pelapor     = mysqli_real_escape_string($conn, $_POST['nama_pelapor']);
+    $hubungan_pelapor = mysqli_real_escape_string($conn, $_POST['hubungan_pelapor']);
 
-    $insert = mysqli_query($conn, "INSERT INTO kematian (
-        nomor_surat, nama_almarhum, tempat_lahir, tanggal_lahir, jenis_kelamin, 
-        kewarganegaraan, agama, status_perkawinan, pekerjaan, alamat, 
-        hari_wafat, tanggal_wafat, tempat_kematian, sebab_kematian, 
-        nama_pelapor, hubungan_pelapor
-    ) VALUES (
-        '$nomor_surat', '$nama', '$tempat_lahir', '$tanggal_lahir', '$jk', 
-        '$kewarganegaraan', '$agama', '$status_perkawinan', '$pekerjaan', '$alamat', 
-        '$hari_wafat', '$tanggal_wafat', '$tempat_kematian', '$sebab_kematian', 
-        '$nama_pelapor', '$hubungan_pelapor'
-    )");
+    try {
+        $insert = mysqli_query($conn, "INSERT INTO kematian (
+            nomor_surat, nama_almarhum, tempat_lahir, tanggal_lahir, jenis_kelamin, 
+            kewarganegaraan, agama, status_perkawinan, pekerjaan, alamat, 
+            hari_wafat, tanggal_wafat, tempat_kematian, sebab_kematian, 
+            nama_pelapor, hubungan_pelapor
+        ) VALUES (
+            '$nomor_surat', '$nama', '$tempat_lahir', '$tanggal_lahir', '$jk', 
+            '$kewarganegaraan', '$agama', '$status_perkawinan', '$pekerjaan', '$alamat', 
+            '$hari_wafat', '$tanggal_wafat', '$tempat_kematian', '$sebab_kematian', 
+            '$nama_pelapor', '$hubungan_pelapor'
+        )");
 
-    if ($insert) {
-        echo "<script>alert('Data Kematian Berhasil Ditambahkan!'); window.location='kematian.php';</script>";
-    } else {
-        echo "<script>alert('Gagal menambahkan data!');</script>";
+        if ($insert) {
+            echo "<script>alert('Data Kematian Berhasil Ditambahkan!'); window.location='kematian.php';</script>";
+        } else {
+            echo "<script>alert('Gagal menambahkan data!');</script>";
+        }
+    } catch (Exception $e) {
+        $error_msg = addslashes($e->getMessage());
+        echo "<script>alert('DB Error: $error_msg');</script>";
     }
 }
 ?>

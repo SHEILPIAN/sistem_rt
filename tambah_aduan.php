@@ -38,7 +38,7 @@ if (isset($_POST['simpan'])) {
             <form action="" method="POST" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Nama Pelapor</label>
-                    <input type="text" name="pelapor" required placeholder="Nama Anda" class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-orange-500 focus:border-orange-500 text-sm">
+                    <input type="text" name="pelapor" value="<?= $_SESSION['role'] == 'warga' ? $_SESSION['nama_lengkap'] : ''; ?>" <?= $_SESSION['role'] == 'warga' ? 'readonly' : ''; ?> required placeholder="Nama Anda" class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-orange-500 focus:border-orange-500 text-sm <?= $_SESSION['role'] == 'warga' ? 'bg-gray-100 cursor-not-allowed' : ''; ?>">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Isi Aduan / Laporan</label>
