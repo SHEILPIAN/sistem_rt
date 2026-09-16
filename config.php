@@ -18,9 +18,17 @@ $pass = getenv('MYSQLPASSWORD') ?: (getenv('DB_PASSWORD') ?: '');
 $db   = getenv('MYSQLDATABASE') ?: (getenv('DB_NAME') ?: 'sistem_rt');
 $port = getenv('MYSQLPORT') ?: (getenv('DB_PORT') ?: 3306);
 
-$conn = mysqli_connect($host, $user, $pass, $db, (int)$port);
+$conn = @mysqli_connect($host, $user, $pass, $db, (int)$port);
+
+// Fallback untuk lingkungan database lokal XAMPP jika sistem_rt belum dibuat
+if (!$conn && $db === 'sistem_rt') {
+    $conn = @mysqli_connect($host, $user, $pass, 'db_sistem_rt', (int)$port);
+}
 
 if (!$conn) {
     die("Koneksi gagal: " . mysqli_connect_error());
 }
+
+// Inisialisasi otomatis tabel role_permissions jika belum ada di database
+init_role_permissions_table($conn);
 ?>
