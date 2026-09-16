@@ -12,8 +12,11 @@ if (!isset($_SESSION['status_login']) || $_SESSION['status_login'] !== true) {
 $kata_kunci = "";
 if (isset($_GET['cari'])) {
     $kata_kunci = $_GET['cari'];
-    // Mencari berdasarkan Nama atau NIK yang mirip dengan kata kunci
-    $query = mysqli_query($conn, "SELECT * FROM warga WHERE nama LIKE '%$kata_kunci%' OR nik LIKE '%$kata_kunci%' ORDER BY nama ASC") or die(mysqli_error($conn));
+    // Warga hanya dapat mencari berdasarkan nama, bukan NIK.
+    $filter_pencarian = $_SESSION['role'] === 'warga'
+        ? "nama LIKE '%$kata_kunci%'"
+        : "nama LIKE '%$kata_kunci%' OR nik LIKE '%$kata_kunci%'";
+    $query = mysqli_query($conn, "SELECT * FROM warga WHERE $filter_pencarian ORDER BY nama ASC") or die(mysqli_error($conn));
 } else {
     // Jika tidak melakukan pencarian, tampilkan semua data
     $query = mysqli_query($conn, "SELECT * FROM warga ORDER BY nama ASC") or die(mysqli_error($conn));
@@ -53,7 +56,7 @@ if (isset($_GET['cari'])) {
                     <i class="fa-solid fa-magnifying-glass text-gray-400"></i>
                 </div>
                 <!-- Input pencarian menyimpan value kata kunci agar tidak hilang saat di-enter -->
-                <input type="text" name="cari" value="<?= $kata_kunci; ?>" placeholder="Cari nama atau NIK warga..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-900 focus:border-blue-900 text-sm outline-none transition">
+                <input type="text" name="cari" value="<?= $kata_kunci; ?>" placeholder="<?= $_SESSION['role'] === 'warga' ? 'Cari nama warga...' : 'Cari nama atau NIK warga...'; ?>" class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-900 focus:border-blue-900 text-sm outline-none transition">
                 
                 <?php if(isset($_GET['cari']) && $_GET['cari'] != ''): ?>
                     <a href="warga.php" class="absolute inset-y-0 right-0 pr-3 flex items-center text-red-500 hover:text-red-700">
@@ -87,7 +90,9 @@ if (isset($_GET['cari'])) {
                     </div>
                     <div class="w-full pr-8">
                         <h3 class="font-bold text-gray-800 text-sm"><?= $row['nama']; ?></h3>
-                        <!-- <p class="text-xs text-gray-600 font-mono mb-1">NIK: <?= $row['nik']; ?></p> -->
+                        <?php if ($_SESSION['role'] !== 'warga'): ?>
+                        <p class="text-xs text-gray-600 font-mono mb-1">NIK: <?= $row['nik']; ?></p>
+                        <?php endif; ?>
                         
                         <div class="flex gap-2 mb-2">
                             <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200"><i class="fa-solid fa-house"></i> <?= $row['alamat_rt']; ?></span>
