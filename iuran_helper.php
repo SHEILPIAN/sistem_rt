@@ -476,6 +476,85 @@ if (!function_exists('catat_pembayaran_iuran')) {
     }
 }
 
+if (!function_exists('edit_pembayaran_iuran_bulan')) {
+    /**
+     * Mengedit / memperbaiki setoran pembayaran iuran untuk suatu bulan dan menyelaraskan dengan Buku Kas Umum.
+     *
+     * @param mysqli $conn
+     * @param int $iuran_id
+     * @param string $bulan ('jan', 'feb', ..., 'des')
+     * @param float $nominal_baru
+     * @param string $target_bulan (opsional jika ingin memindahkan ke bulan lain)
+     * @param bool $sync_kas
+     * @return bool
+     */
+    function edit_pembayaran_iuran_bulan($conn, $iuran_id, $bulan, $nominal_baru, $target_bulan = '', $sync_kas = true) {
+        $iuran_id = (int)$iuran_id;
+        $bulan = strtolower(trim($bulan));
+        $target_bulan = !empty($target_bulan) ? strtolower(trim($target_bulan)) : $bulan;
+        $nominal_baru = max(0, (float)$nominal_baru);
+        $valid_months = ['jan', 'feb', 'mar', 'apr', 'mei', 'jun', 'jul', 'agt', 'sep', 'okt', 'nop', 'des'];
+
+        if (!in_array($bulan, $valid_months) || !in_array($target_bulan, $valid_months)) {
+            return false;
+        }
+
+        // Ambil data warga saat ini
+        $q_warga = mysqli_query($conn, "SELECT * FROM iuran_warga WHERE id = $iuran_id");
+        if (!$q_warga || mysqli_num_rows($q_warga) == 0) {
+            return false;
+        }
+        $data_warga = mysqli_fetch_assoc($q_warga);
+
+        $tahun_iuran = (int)$data_warga['tahun'];
+        $blok_warga = mysqli_real_escape_string($conn, $data_warga['blok']);
+        $nama_warga = mysqli_real_escape_string($conn, $data_warga['nama']);
+        $nama_bulan_lama = strtoupper($bulan);
+        $nama_bulan_baru = strtoupper($target_bulan);
+
+        // Jika dipindah ke bulan lain, kosongkan bulan lama dan isi bulan baru
+        if ($target_bulan !== $bulan) {
+            $update = mysqli_query($conn, "UPDATE iuran_warga SET $bulan = 0, $target_bulan = $nominal_baru WHERE id = $iuran_id");
+        } else {
+            $update = mysqli_query($conn, "UPDATE iuran_warga SET $bulan = $nominal_baru WHERE id = $iuran_id");
+        }
+
+        if (!$update) {
+            return false;
+        }
+
+        // Sinkronisasi dengan tabel keuangan (Kas Masuk)
+        if ($sync_kas) {
+            $uraian_lama = "Iuran RT Blok $blok_warga - $nama_warga (Bulan $nama_bulan_lama $tahun_iuran)";
+            $uraian_baru = "Iuran RT Blok $blok_warga - $nama_warga (Bulan $nama_bulan_baru $tahun_iuran)";
+            $uraian_lama_safe = mysqli_real_escape_string($conn, $uraian_lama);
+            $uraian_baru_safe = mysqli_real_escape_string($conn, $uraian_baru);
+
+            // Cari transaksi kas terkait
+            $cek_kas = mysqli_query($conn, "SELECT id FROM keuangan WHERE (keterangan = '$uraian_lama_safe' OR (keterangan LIKE '%$blok_warga%' AND keterangan LIKE '%$nama_bulan_lama $tahun_iuran%')) AND jenis = 'Masuk' ORDER BY id DESC LIMIT 1");
+
+            if ($cek_kas && mysqli_num_rows($cek_kas) > 0) {
+                $row_kas = mysqli_fetch_assoc($cek_kas);
+                $kas_id = (int)$row_kas['id'];
+
+                if ($nominal_baru > 0) {
+                    mysqli_query($conn, "UPDATE keuangan SET nominal = $nominal_baru, keterangan = '$uraian_baru_safe' WHERE id = $kas_id");
+                } else {
+                    mysqli_query($conn, "DELETE FROM keuangan WHERE id = $kas_id");
+                }
+            } else {
+                if ($nominal_baru > 0) {
+                    $tgl_sekarang = date('Y-m-d');
+                    mysqli_query($conn, "INSERT INTO keuangan (tanggal, keterangan, jenis, nominal) 
+                        VALUES ('$tgl_sekarang', '$uraian_baru_safe', 'Masuk', $nominal_baru)");
+                }
+            }
+        }
+
+        return true;
+    }
+}
+
 if (!function_exists('compare_blok_natural')) {
     /**
      * Membandingkan dua string blok rumah warga secara natural (A sampai Z, 1 sampai 999, suffix A/B/dst).

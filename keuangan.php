@@ -159,6 +159,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $can_manage) {
             $pesan_error = "Data iuran tidak ditemukan.";
         }
     }
+
+    // 7. Edit / Koreksi Setoran Iuran Bulanan (Januari s/d Desember 2026)
+    elseif ($action === 'edit_iuran_bulan') {
+        $id_iuran     = (int)($_POST['id'] ?? 0);
+        $bulan_asal   = strtolower(trim($_POST['bulan_asal'] ?? ''));
+        $target_bulan = strtolower(trim($_POST['target_bulan'] ?? $bulan_asal));
+        $nominal_baru = (float)str_replace(['.', ','], ['', '.'], $_POST['nominal'] ?? 0);
+        $sync_kas     = isset($_POST['sync_kas']) && $_POST['sync_kas'] == '1';
+
+        if ($id_iuran > 0 && !empty($bulan_asal)) {
+            if (edit_pembayaran_iuran_bulan($conn, $id_iuran, $bulan_asal, $nominal_baru, $target_bulan, $sync_kas)) {
+                $pesan_sukses = "Setoran iuran bulan " . strtoupper($target_bulan) . " berhasil diperbarui menjadi Rp " . number_format($nominal_baru, 0, ',', '.') . ". Seluruh rekapitulasi telah diselaraskan.";
+            } else {
+                $pesan_error = "Gagal memperbarui setoran iuran bulanan.";
+            }
+        } else {
+            $pesan_error = "Data setoran iuran tidak valid.";
+        }
+    }
+
+    // 8. Edit Transaksi Kas Umum
+    elseif ($action === 'edit_kas') {
+        $id_kas     = (int)($_POST['id'] ?? 0);
+        $tanggal    = mysqli_real_escape_string($conn, trim($_POST['tanggal'] ?? date('Y-m-d')));
+        $keterangan = mysqli_real_escape_string($conn, trim($_POST['keterangan'] ?? ''));
+        $jenis      = ($_POST['jenis'] === 'Keluar') ? 'Keluar' : 'Masuk';
+        $nominal    = max(0, (float)str_replace(['.', ','], ['', '.'], $_POST['nominal'] ?? 0));
+
+        if ($id_kas > 0 && !empty($keterangan) && $nominal > 0) {
+            $sql_update_kas = "UPDATE keuangan SET tanggal = '$tanggal', keterangan = '$keterangan', jenis = '$jenis', nominal = $nominal WHERE id = $id_kas";
+            if (mysqli_query($conn, $sql_update_kas)) {
+                $pesan_sukses = "Data transaksi kas berhasil diperbarui.";
+            } else {
+                $pesan_error = "Gagal memperbarui transaksi kas: " . mysqli_error($conn);
+            }
+        } else {
+            $pesan_error = "Data transaksi kas tidak lengkap.";
+        }
+    }
+
+    // 9. Hapus Transaksi Kas Umum
+    elseif ($action === 'hapus_kas') {
+        $id_kas = (int)($_POST['id'] ?? 0);
+        if ($id_kas > 0) {
+            if (mysqli_query($conn, "DELETE FROM keuangan WHERE id = $id_kas")) {
+                $pesan_sukses = "Transaksi kas berhasil dihapus dari buku kas.";
+            } else {
+                $pesan_error = "Gagal menghapus transaksi kas: " . mysqli_error($conn);
+            }
+        }
+    }
 }
 
 // ==========================================
@@ -650,7 +701,12 @@ $bulan_labels = [
                             <th rowspan="2" class="p-2 border border-yellow-600 max-w-[140px] leading-tight">Jumlah Kekurangan Iuran dalam uang - s/d bulan Des <?= $tahun_aktif - 1; ?></th>
                             <th rowspan="2" class="p-2 border border-yellow-600 max-w-[130px] leading-tight">Jumlah Kekurangan Iuran dalam bulan - s/d bulan Des <?= $tahun_aktif; ?></th>
                             <th rowspan="2" class="p-2 border border-yellow-600 max-w-[140px] leading-tight">Jumlah yang harus dibayar - s/d bulan Des <?= $tahun_aktif; ?></th>
-                            <th colspan="12" class="p-2 border border-yellow-600 text-center tracking-wider bg-yellow-400">TAHUN <?= $tahun_aktif; ?></th>
+                            <th colspan="12" class="p-2 border border-yellow-600 text-center tracking-wider bg-yellow-400">
+                                TAHUN <?= $tahun_aktif; ?>
+                                <?php if ($can_manage): ?>
+                                    <span class="block text-[9px] font-normal normal-case text-yellow-950 mt-0.5"><i class="fa-solid fa-pen-to-square"></i> Klik kolom bulan untuk edit/koreksi setoran</span>
+                                <?php endif; ?>
+                            </th>
                             <th rowspan="2" class="p-2 border border-yellow-600 max-w-[140px] leading-tight">Jumlah Kekurangan Iuran dalam uang - s/d bulan Des <?= $tahun_aktif; ?></th>
                             <th rowspan="2" class="p-2 border border-yellow-600 min-w-[120px]">Keterangan</th>
                             <?php if ($can_manage): ?>
@@ -750,11 +806,19 @@ $bulan_labels = [
                                         $tot_bulan[$b_key] += $val;
                                     }
                                 ?>
-                                <td class="p-1.5 border border-gray-300 text-right font-mono <?= $val > 0 ? 'bg-emerald-50 text-emerald-700 font-bold' : ''; ?>">
+                                <td class="p-0 border border-gray-300 text-right font-mono transition <?= $val > 0 ? 'bg-emerald-50/90 text-emerald-800 font-bold hover:bg-emerald-100' : 'hover:bg-yellow-50/80 text-gray-400'; ?>">
                                     <?php if ($k['is_kosong']): ?>
-                                        -
+                                        <span class="text-gray-300 block py-1.5 px-2">-</span>
+                                    <?php elseif ($can_manage): ?>
+                                        <button type="button" 
+                                                onclick='bukaModalEditBulan(<?= json_encode($row); ?>, "<?= $b_key; ?>", "<?= $b_lbl; ?>", <?= (float)$val; ?>)'
+                                                class="w-full h-full py-1.5 px-2 rounded flex items-center justify-end gap-1 group/m transition cursor-pointer" 
+                                                title="Klik untuk input/edit setoran Bulan <?= $b_lbl; ?> <?= $tahun_aktif; ?>">
+                                            <span class="<?= $val > 0 ? 'text-emerald-700 font-bold' : 'text-gray-300 group-hover/m:text-amber-700'; ?>"><?= $val > 0 ? number_format($val, 0, ',', '.') : '-'; ?></span>
+                                            <i class="fa-solid fa-pen-to-square text-[9px] opacity-0 group-hover/m:opacity-90 text-amber-600 shrink-0"></i>
+                                        </button>
                                     <?php else: ?>
-                                        <?= $val > 0 ? number_format($val, 0, ',', '.') : '-'; ?>
+                                        <span class="block py-1.5 px-2"><?= $val > 0 ? number_format($val, 0, ',', '.') : '-'; ?></span>
                                     <?php endif; ?>
                                 </td>
                                 <?php endforeach; ?>
@@ -1058,11 +1122,27 @@ $bulan_labels = [
                                     <p class="text-[11px] text-gray-500"><?= date('d M Y', strtotime($row['tanggal'])); ?></p>
                                 </div>
                             </div>
-                            <div class="text-right shrink-0">
-                                <?php if ($row['jenis'] == 'Masuk'): ?>
-                                    <p class="font-bold text-green-600 text-sm">+ Rp <?= number_format($row['nominal'], 0, ',', '.'); ?></p>
-                                <?php else: ?>
-                                    <p class="font-bold text-red-600 text-sm">- Rp <?= number_format($row['nominal'], 0, ',', '.'); ?></p>
+                            <div class="text-right shrink-0 flex items-center gap-3">
+                                <div>
+                                    <?php if ($row['jenis'] == 'Masuk'): ?>
+                                        <p class="font-bold text-green-600 text-sm">+ Rp <?= number_format($row['nominal'], 0, ',', '.'); ?></p>
+                                    <?php else: ?>
+                                        <p class="font-bold text-red-600 text-sm">- Rp <?= number_format($row['nominal'], 0, ',', '.'); ?></p>
+                                    <?php endif; ?>
+                                </div>
+                                <?php if ($can_manage): ?>
+                                <div class="flex items-center gap-1 pl-2 border-l border-gray-200">
+                                    <button type="button" onclick='bukaModalEditKas(<?= json_encode($row); ?>)' title="Edit Transaksi Kas" class="p-1.5 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition">
+                                        <i class="fa-solid fa-pen-to-square text-xs"></i>
+                                    </button>
+                                    <form method="POST" action="keuangan.php?tab=kas" onsubmit="return confirm('Hapus transaksi ini dari buku kas?')" class="inline">
+                                        <input type="hidden" name="action" value="hapus_kas">
+                                        <input type="hidden" name="id" value="<?= $row['id']; ?>">
+                                        <button type="submit" title="Hapus Transaksi" class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition">
+                                            <i class="fa-solid fa-trash-can text-xs"></i>
+                                        </button>
+                                    </form>
+                                </div>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -1491,6 +1571,154 @@ $bulan_labels = [
     </div>
 
     <!-- ========================================== -->
+    <!-- MODAL 4C: EDIT SETORAN BULANAN (JAN - DES) -->
+    <!-- ========================================== -->
+    <div id="modalEditBulan" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative animate-fade-in">
+            <div class="flex justify-between items-center pb-3 border-b border-gray-200">
+                <h3 class="font-bold text-gray-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-money-bill-transfer text-emerald-600"></i> Edit / Koreksi Setoran Bulanan
+                </h3>
+                <button type="button" onclick="tutupModalEditBulan()" class="text-gray-400 hover:text-gray-700 text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form method="POST" action="keuangan.php?tab=iuran&tahun=<?= $tahun_aktif; ?>" class="mt-4 space-y-4">
+                <input type="hidden" name="action" value="edit_iuran_bulan">
+                <input type="hidden" id="edit_bulan_id" name="id" value="">
+                <input type="hidden" id="edit_bulan_asal" name="bulan_asal" value="">
+
+                <!-- Info Kavling & Warga -->
+                <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex justify-between items-center">
+                    <div>
+                        <span class="text-[10px] text-emerald-800 font-semibold uppercase tracking-wider block">Kavling / Warga:</span>
+                        <span id="edit_bulan_nama_label" class="font-bold text-sm text-gray-900">Blok -</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[10px] text-gray-500 block">Bulan Terpilih:</span>
+                        <span id="edit_bulan_label" class="text-xs font-bold font-mono text-emerald-800 bg-white border border-emerald-300 px-2 py-0.5 rounded shadow-sm">JAN 2026</span>
+                    </div>
+                </div>
+
+                <!-- Opsi Koreksi: Pindah ke Bulan Lain jika salah input bulan -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Penempatan Bulan Setoran:</label>
+                    <select id="edit_bulan_target" name="target_bulan" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        <?php foreach ($bulan_labels as $m_k => $m_l): ?>
+                            <option value="<?= $m_k; ?>"><?= $m_l; ?> (Tahun <?= $tahun_aktif; ?>)</option>
+                        <?php endforeach; ?>
+                    </select>
+                    <p class="text-[10px] text-gray-500 mt-1">Bila ada salah letak bulan, pilih bulan tujuan di atas untuk memindahkan setoran.</p>
+                </div>
+
+                <!-- Input Nominal Pembayaran -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs font-bold text-gray-700">Nominal Setoran (Rp) <span class="text-red-500">*</span></label>
+                        <span id="edit_bulan_nominal_sebelumnya" class="text-[11px] font-mono text-gray-500">
+                            Sebelumnya: Rp 0
+                        </span>
+                    </div>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 font-bold text-sm">Rp</span>
+                        <input type="number" 
+                               id="edit_bulan_nominal" 
+                               name="nominal" 
+                               required 
+                               min="0" 
+                               step="1000"
+                               placeholder="Contoh: 20000" 
+                               class="w-full border-2 border-emerald-400 rounded-xl pl-10 pr-4 py-2.5 text-base font-bold font-mono text-gray-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                    
+                    <!-- Preset Cepat Nominal -->
+                    <div class="flex flex-wrap gap-1.5 mt-2 items-center">
+                        <span class="text-[10px] text-gray-400 font-semibold">Preset Cepat:</span>
+                        <button type="button" onclick="setPresetNominalBulan(0)" class="text-[11px] px-2 py-0.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-mono font-bold border border-red-200">Rp 0 (Hapus)</button>
+                        <button type="button" onclick="setPresetNominalBulan(<?= (int)$tarif_bulanan; ?>)" class="text-[11px] px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg font-mono font-bold border border-emerald-200"><?= number_format($tarif_bulanan, 0, ',', '.'); ?></button>
+                        <button type="button" onclick="setPresetNominalBulan(<?= (int)$tarif_bulanan * 2; ?>)" class="text-[11px] px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-mono font-bold border border-gray-200"><?= number_format($tarif_bulanan * 2, 0, ',', '.'); ?></button>
+                        <button type="button" onclick="setPresetNominalBulan(100000)" class="text-[11px] px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-mono font-bold border border-gray-200">100.000</button>
+                        <button type="button" onclick="setPresetNominalBulan(200000)" class="text-[11px] px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-mono font-bold border border-gray-200">200.000</button>
+                        <button type="button" onclick="setPresetNominalBulan(<?= (int)$tarif_bulanan * 12; ?>)" class="text-[11px] px-2 py-0.5 bg-yellow-50 hover:bg-yellow-100 text-yellow-800 rounded-lg font-mono font-bold border border-yellow-200"><?= number_format($tarif_bulanan * 12, 0, ',', '.'); ?> (1 Thn)</button>
+                    </div>
+                </div>
+
+                <!-- Opsi Sinkronisasi Kas -->
+                <div class="p-3 bg-gray-50 border border-gray-200 rounded-xl">
+                    <label class="flex items-start gap-2 cursor-pointer">
+                        <input type="checkbox" name="sync_kas" value="1" checked class="mt-0.5 text-emerald-600 rounded focus:ring-emerald-500 w-4 h-4">
+                        <span class="text-xs text-gray-700">
+                            <strong>Sinkronkan otomatis ke Buku Kas Umum RT</strong>
+                            <span class="block text-[10px] text-gray-500 mt-0.5">Otomatis memperbarui nilai pemasukan kas atau menghapus transaksi kas jika nominal diubah jadi Rp 0.</span>
+                        </span>
+                    </label>
+                </div>
+
+                <!-- Tombol Aksi -->
+                <div class="flex gap-2.5 pt-2">
+                    <button type="button" onclick="tutupModalEditBulan()" class="w-1/3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-sm transition">
+                        Batal
+                    </button>
+                    <button type="submit" class="w-2/3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-sm shadow-md flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-check"></i> Simpan Koreksi
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 4D: EDIT TRANSAKSI KAS UMUM          -->
+    <!-- ========================================== -->
+    <div id="modalEditKas" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative animate-fade-in">
+            <div class="flex justify-between items-center pb-3 border-b border-gray-200">
+                <h3 class="font-bold text-gray-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-blue-600"></i> Edit Transaksi Kas Umum
+                </h3>
+                <button type="button" onclick="tutupModalEditKas()" class="text-gray-400 hover:text-gray-700 text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form method="POST" action="keuangan.php?tab=kas" class="mt-4 space-y-4">
+                <input type="hidden" name="action" value="edit_kas">
+                <input type="hidden" id="edit_kas_id" name="id" value="">
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Tanggal Transaksi <span class="text-red-500">*</span></label>
+                    <input type="date" id="edit_kas_tanggal" name="tanggal" required class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Keterangan / Uraian <span class="text-red-500">*</span></label>
+                    <input type="text" id="edit_kas_keterangan" name="keterangan" required class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Jenis Transaksi</label>
+                        <select id="edit_kas_jenis" name="jenis" required class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-bold">
+                            <option value="Masuk">Pemasukan (Masuk)</option>
+                            <option value="Keluar">Pengeluaran (Keluar)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Nominal (Rp) <span class="text-red-500">*</span></label>
+                        <input type="number" id="edit_kas_nominal" name="nominal" required min="1" step="1000" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm font-mono font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="flex gap-2.5 pt-2">
+                    <button type="button" onclick="tutupModalEditKas()" class="w-1/3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-sm transition">
+                        Batal
+                    </button>
+                    <button type="submit" class="w-2/3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-sm shadow-md flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-check"></i> Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
     <!-- MODAL 5: ALAT PEMBAYARAN QRIS RT 31        -->
     <!-- ========================================== -->
     <div id="modalQRIS" class="fixed inset-0 bg-black/75 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
@@ -1809,6 +2037,56 @@ $bulan_labels = [
             var elSisa = document.getElementById('preview_tambah_sisa_kurang');
             elSisa.textContent = formatRupiah(sisaKurang);
             elSisa.className = "font-mono font-bold " + (sisaKurang < 0 ? "text-red-300" : (sisaKurang === 0 ? "text-emerald-300" : "text-blue-300"));
+        }
+
+        // ==========================================
+        // HANDLER MODAL EDIT SETORAN BULANAN (JAN - DES)
+        // ==========================================
+        function bukaModalEditBulan(row, bulanKey, bulanLabel, currentVal) {
+            document.getElementById('edit_bulan_id').value = row.id;
+            document.getElementById('edit_bulan_asal').value = bulanKey;
+            document.getElementById('edit_bulan_target').value = bulanKey;
+            document.getElementById('edit_bulan_nama_label').textContent = 'Blok ' + (row.blok || '') + ' - ' + (row.nama || '');
+            document.getElementById('edit_bulan_label').textContent = bulanLabel.toUpperCase() + ' ' + (row.tahun || '2026');
+            
+            var nominal = parseFloat(currentVal) || 0;
+            document.getElementById('edit_bulan_nominal').value = nominal;
+            document.getElementById('edit_bulan_nominal_sebelumnya').textContent = 'Saat Ini: ' + formatRupiah(nominal);
+            
+            var modal = document.getElementById('modalEditBulan');
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+        }
+
+        function tutupModalEditBulan() {
+            var modal = document.getElementById('modalEditBulan');
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+
+        function setPresetNominalBulan(nominal) {
+            document.getElementById('edit_bulan_nominal').value = nominal;
+        }
+
+        // ==========================================
+        // HANDLER MODAL EDIT TRANSAKSI KAS
+        // ==========================================
+        function bukaModalEditKas(row) {
+            document.getElementById('edit_kas_id').value = row.id;
+            document.getElementById('edit_kas_tanggal').value = row.tanggal;
+            document.getElementById('edit_kas_keterangan').value = row.keterangan;
+            document.getElementById('edit_kas_jenis').value = row.jenis;
+            document.getElementById('edit_kas_nominal').value = parseFloat(row.nominal) || 0;
+            
+            var modal = document.getElementById('modalEditKas');
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+        }
+
+        function tutupModalEditKas() {
+            var modal = document.getElementById('modalEditKas');
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
         }
 
         function bukaModalQRIS() {
