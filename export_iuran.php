@@ -192,11 +192,11 @@ while ($r = mysqli_fetch_assoc($query)) {
 
 <br>
 
-<!-- Informasi Transfer Bank BCA & Kontak Konfirmasi (Sesuai Bawah Spreadsheet) -->
+<!-- Informasi Saluran Pembayaran (QRIS & Transfer BCA) Sesuai Bawah Spreadsheet -->
 <table cellpadding="4" cellspacing="0" style="font-family: Arial, sans-serif; font-size: 10pt; width: 100%;">
     <tr>
         <td colspan="10" style="font-weight: bold; font-size: 11pt; padding-bottom: 5px;">
-            Pembayaran Iuran RT dapat melalui Transfer ke :
+            Pembayaran Iuran RT dapat melalui QRIS atau Transfer Bank ke :
         </td>
         <td colspan="5" style="border: 1px solid #333; background-color: #f1f5f9; font-weight: bold;">
             Kosong
@@ -206,8 +206,18 @@ while ($r = mysqli_fetch_assoc($query)) {
         </td>
     </tr>
     <tr>
-        <td colspan="10" style="font-weight: bold; padding-left: 20px;">
-            BANK CENTRAL ASIA
+        <td colspan="3" style="padding-left: 20px; font-weight: bold; color: #b91c1c;">1. QRIS Resmi</td>
+        <td colspan="7" style="font-weight: bold;">: KAS RT31 GRAHA KALIMAS (NMID: ID1026545858353)</td>
+        <td colspan="5" style="border: 1px solid #333; background-color: #f1f5f9; font-weight: bold;">
+            Dikontrak
+        </td>
+        <td colspan="4" style="border: 1px solid #333; text-align: center; font-weight: bold;">
+            <?= $counts_status['dikontrak']; ?>
+        </td>
+    </tr>
+    <tr>
+        <td colspan="10" style="font-weight: bold; padding-left: 20px; color: #1e3a8a;">
+            2. BANK CENTRAL ASIA (BCA)
         </td>
         <td colspan="5" style="border: 1px solid #333; background-color: #f1f5f9; font-weight: bold;">
             Dikontrak

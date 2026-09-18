@@ -161,6 +161,30 @@ $total_remaja = mysqli_num_rows($q_remaja);
                 <?php endif; ?>
             </div>
 
+            <!-- Banner Cepat Alat Pembayaran QRIS RT -->
+            <div class="px-4 mb-4">
+                <a href="keuangan.php?tab=qris" class="block bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white p-3.5 rounded-2xl shadow-md hover:from-red-700 hover:to-rose-800 transition group">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-11 h-11 bg-white rounded-xl p-1 shadow-sm flex items-center justify-center shrink-0">
+                                <img src="qris_kas_rt31.jpg" alt="QRIS RT 31" class="w-full h-full object-contain rounded">
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="bg-white text-red-700 text-[9px] font-black uppercase px-1.5 py-0.5 rounded shadow-sm">ALAT BAYAR QRIS</span>
+                                    <span class="text-[10px] text-red-100 font-medium">Nontunai Resmi RT</span>
+                                </div>
+                                <p class="font-extrabold text-xs text-white mt-0.5">KAS RT31 GRAHA KALIMAS</p>
+                                <p class="text-[10px] text-red-200">Scan via BCA, Mandiri, GoPay, OVO, DANA dll</p>
+                            </div>
+                        </div>
+                        <span class="text-[11px] bg-white/20 px-2.5 py-1.5 rounded-xl text-white font-bold group-hover:bg-white/30 transition flex items-center gap-1 shrink-0">
+                            Scan QRIS <i class="fa-solid fa-chevron-right text-[9px]"></i>
+                        </span>
+                    </div>
+                </a>
+            </div>
+
             <!-- Rekap Ringkasan RT -->
             <div class="px-4 mt-2">
                 <h2 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
