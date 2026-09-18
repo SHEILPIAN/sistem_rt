@@ -27,18 +27,35 @@ if ($q_iuran) {
     }
 }
 
-// Logika Pencarian Data
+// Logika Pencarian & Pengurutan Data Berdasarkan Blok Rumah (A - Z)
 $kata_kunci = "";
+$order_blok_sql = "
+    REGEXP_SUBSTR(REGEXP_REPLACE(alamat_rt, '^Blok[[:space:]]+', ''), '^[A-Za-z]+') ASC,
+    CAST(REGEXP_SUBSTR(alamat_rt, '[0-9]+') AS UNSIGNED) ASC,
+    alamat_rt ASC,
+    FIELD(hubungan_keluarga, 'Suami (Kepala Rumah Tangga)', 'Janda (Kepala Rumah Tangga)', 'Kepala Keluarga', 'Istri (Mengurus Rumah Tangga)', 'Anak', 'Janda (Anggota Keluarga)') ASC,
+    nama ASC
+";
+
 if (isset($_GET['cari'])) {
     $kata_kunci = mysqli_real_escape_string($conn, trim($_GET['cari']));
     // Role dengan izin 'view_nik' dapat mencari berdasarkan NIK, nama, atau alamat/blok. Role biasa mencari nama atau alamat/blok.
     $filter_pencarian = has_permission('view_nik')
         ? "(nama LIKE '%$kata_kunci%' OR nik LIKE '%$kata_kunci%' OR alamat_rt LIKE '%$kata_kunci%')"
         : "(nama LIKE '%$kata_kunci%' OR alamat_rt LIKE '%$kata_kunci%')";
-    $query = mysqli_query($conn, "SELECT * FROM warga WHERE $filter_pencarian ORDER BY nama ASC") or die(mysqli_error($conn));
+    $query = mysqli_query($conn, "SELECT * FROM warga WHERE $filter_pencarian ORDER BY $order_blok_sql") or die(mysqli_error($conn));
 } else {
-    // Jika tidak melakukan pencarian, tampilkan semua data
-    $query = mysqli_query($conn, "SELECT * FROM warga ORDER BY nama ASC") or die(mysqli_error($conn));
+    // Jika tidak melakukan pencarian, tampilkan semua data terurut blok A-Z
+    $query = mysqli_query($conn, "SELECT * FROM warga ORDER BY $order_blok_sql") or die(mysqli_error($conn));
+}
+
+// Ambil semua data warga ke array dan urutkan secara natural A - Z
+$daftar_warga = [];
+if ($query) {
+    while ($rw = mysqli_fetch_assoc($query)) {
+        $daftar_warga[] = $rw;
+    }
+    sort_warga_by_blok($daftar_warga, 'alamat_rt');
 }
 ?>
 <!DOCTYPE html>
@@ -88,11 +105,11 @@ if (isset($_GET['cari'])) {
         <!-- List Data Warga -->
         <div class="px-4 mt-4 space-y-3">
             <?php 
-            $jumlah_data = mysqli_num_rows($query);
+            $jumlah_data = count($daftar_warga);
             if ($jumlah_data > 0): 
             ?>
                 <div class="flex justify-between items-center mb-3">
-                    <p class="text-xs text-gray-500">Menampilkan <?= $jumlah_data; ?> data warga.</p>
+                    <p class="text-xs text-gray-500">Menampilkan <?= $jumlah_data; ?> data warga (Urut Blok A - Z).</p>
     
                     <!-- Tombol Export Excel (Hanya untuk Admin) -->
                     <?php if(has_permission('export_warga')): ?>
@@ -101,7 +118,7 @@ if (isset($_GET['cari'])) {
                     </a>
                     <?php endif; ?>
                 </div>
-                <?php while($row = mysqli_fetch_assoc($query)) : ?>
+                <?php foreach($daftar_warga as $row) : ?>
                 <!-- Tambahkan class 'relative' di div utama ini -->
                 <div class="bg-white border border-gray-200 p-3 rounded-xl shadow-sm flex items-start gap-3 hover:bg-blue-50 transition relative">
                     <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xl shrink-0 mt-1 border border-blue-200">
@@ -215,7 +232,7 @@ if (isset($_GET['cari'])) {
                         <?php endif; ?>
                     </div>
                 </div>
-                <?php endwhile; ?>
+                <?php endforeach; ?>
             <?php else: ?>
                 <div class="text-center py-10">
                     <i class="fa-solid fa-users-slash text-4xl text-gray-300 mb-2"></i>

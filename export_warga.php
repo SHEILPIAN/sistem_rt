@@ -24,14 +24,28 @@ $rekap = mysqli_fetch_assoc($q_rekap);
 
 require_once 'iuran_helper.php';
 
-// MENGAMBIL DATA WARGA (Dikelompokkan berdasarkan Alamat/No KK, diurutkan Kepala Keluarga -> Istri -> Anak)
+// MENGAMBIL DATA WARGA (Diurutkan berdasarkan Blok Rumah A - Z secara natural)
 $kata_kunci = isset($_GET['cari']) ? mysqli_real_escape_string($conn, $_GET['cari']) : "";
-$order_field = "FIELD(hubungan_keluarga, 'Suami (Kepala Rumah Tangga)', 'Janda (Kepala Rumah Tangga)', 'Kepala Keluarga', 'Istri (Mengurus Rumah Tangga)', 'Anak', 'Janda (Anggota Keluarga)') ASC, tanggal_lahir ASC";
+$order_blok_sql = "
+    REGEXP_SUBSTR(REGEXP_REPLACE(alamat_rt, '^Blok[[:space:]]+', ''), '^[A-Za-z]+') ASC,
+    CAST(REGEXP_SUBSTR(alamat_rt, '[0-9]+') AS UNSIGNED) ASC,
+    alamat_rt ASC,
+    FIELD(hubungan_keluarga, 'Suami (Kepala Rumah Tangga)', 'Janda (Kepala Rumah Tangga)', 'Kepala Keluarga', 'Istri (Mengurus Rumah Tangga)', 'Anak', 'Janda (Anggota Keluarga)') ASC,
+    nama ASC
+";
 
 if ($kata_kunci != "") {
-    $query = mysqli_query($conn, "SELECT *, TIMESTAMPDIFF(YEAR, tanggal_lahir, CURDATE()) AS umur FROM warga WHERE nama LIKE '%$kata_kunci%' OR nik LIKE '%$kata_kunci%' OR alamat_rt LIKE '%$kata_kunci%' ORDER BY alamat_rt ASC, $order_field");
+    $query = mysqli_query($conn, "SELECT *, TIMESTAMPDIFF(YEAR, tanggal_lahir, CURDATE()) AS umur FROM warga WHERE nama LIKE '%$kata_kunci%' OR nik LIKE '%$kata_kunci%' OR alamat_rt LIKE '%$kata_kunci%' ORDER BY $order_blok_sql");
 } else {
-    $query = mysqli_query($conn, "SELECT *, TIMESTAMPDIFF(YEAR, tanggal_lahir, CURDATE()) AS umur FROM warga ORDER BY alamat_rt ASC, $order_field");
+    $query = mysqli_query($conn, "SELECT *, TIMESTAMPDIFF(YEAR, tanggal_lahir, CURDATE()) AS umur FROM warga ORDER BY $order_blok_sql");
+}
+
+$rows_warga = [];
+if ($query) {
+    while ($r = mysqli_fetch_assoc($query)) {
+        $rows_warga[] = $r;
+    }
+    sort_warga_by_blok($rows_warga, 'alamat_rt');
 }
 ?>
 
@@ -77,7 +91,7 @@ if ($kata_kunci != "") {
         $current_kk = "";
         $warna_baris = "#ffffff";
         
-        while($row = mysqli_fetch_assoc($query)){
+        foreach($rows_warga as $row){
             // Logika untuk memberi warna selang-seling per Kartu Keluarga agar mudah dibaca di Excel
             if ($row['no_kk'] != $current_kk) {
                 $current_kk = $row['no_kk'];

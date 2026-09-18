@@ -19,8 +19,13 @@ if (!headers_sent()) {
     header("Content-Disposition: attachment; filename=Rekap_Iuran_Bulanan_RT31_{$tahun}.xls");
 }
 
-// Ambil 80 data iuran warga untuk tahun terpilih
-$query = mysqli_query($conn, "SELECT * FROM iuran_warga WHERE tahun = $tahun ORDER BY id ASC");
+// Ambil data iuran warga untuk tahun terpilih terurut blok A - Z
+$sql_order_blok = "
+    REGEXP_SUBSTR(REGEXP_REPLACE(blok, '^Blok[[:space:]]+', ''), '^[A-Za-z]+') ASC,
+    CAST(REGEXP_SUBSTR(blok, '[0-9]+') AS UNSIGNED) ASC,
+    blok ASC
+";
+$query = mysqli_query($conn, "SELECT * FROM iuran_warga WHERE tahun = $tahun ORDER BY $sql_order_blok");
 
 // Inisialisasi total akumulasi
 $sum_uang_lalu = 0;
@@ -48,6 +53,9 @@ while ($r = mysqli_fetch_assoc($query)) {
     }
     $rows_data[] = $r;
 }
+
+// Urutkan data secara natural A sampai Z
+sort_iuran_by_blok($rows_data, 'blok');
 ?>
 <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; font-family: Arial, sans-serif; font-size: 10pt;">
     <thead>

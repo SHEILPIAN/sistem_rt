@@ -169,7 +169,13 @@ if (!empty($kata_kunci)) {
     $sql_filter .= " AND (nama LIKE '%$safe_kunci%' OR blok LIKE '%$safe_kunci%' OR nik LIKE '%$safe_kunci%')";
 }
 
-$q_iuran = mysqli_query($conn, "SELECT * FROM iuran_warga WHERE $sql_filter ORDER BY id ASC");
+$sql_order_blok = "
+    REGEXP_SUBSTR(REGEXP_REPLACE(blok, '^Blok[[:space:]]+', ''), '^[A-Za-z]+') ASC,
+    CAST(REGEXP_SUBSTR(blok, '[0-9]+') AS UNSIGNED) ASC,
+    blok ASC
+";
+
+$q_iuran = mysqli_query($conn, "SELECT * FROM iuran_warga WHERE $sql_filter ORDER BY $sql_order_blok");
 $daftar_iuran = [];
 $total_warga_count = 0;
 $counts_status = ['Kosong' => 0, 'dikontrak' => 0, 'Rumah ke 2' => 0, 'Penghuni' => 0];
@@ -211,6 +217,21 @@ if ($q_iuran) {
             $sum_iuran_terkumpul += $kalkulasi['total_bayar_2026'];
             $sum_tunggakan_sisa += $kalkulasi['sisa_kurang_2026'];
         }
+    }
+    // Urutkan daftar iuran kavling secara natural dari Blok A sampai Z dan seterusnya
+    sort_iuran_by_blok($daftar_iuran, 'blok');
+}
+
+// Untuk modal catat iuran: selalu sediakan seluruh kavling terurut A - Z meskipun tabel sedang difilter pencarian
+$semua_pilihan_iuran = $daftar_iuran;
+if (!empty($kata_kunci)) {
+    $q_all_iuran = mysqli_query($conn, "SELECT id, blok, nama, keterangan FROM iuran_warga WHERE tahun = $tahun_aktif");
+    $semua_pilihan_iuran = [];
+    if ($q_all_iuran) {
+        while ($r_all = mysqli_fetch_assoc($q_all_iuran)) {
+            $semua_pilihan_iuran[] = $r_all;
+        }
+        sort_iuran_by_blok($semua_pilihan_iuran, 'blok');
     }
 }
 
@@ -1068,8 +1089,10 @@ $bulan_labels = [
                     <label class="block text-xs font-bold text-gray-700 mb-1">Pilih Blok / Warga <span class="text-red-500">*</span></label>
                     <select id="input_bayar_iuran_id" name="iuran_id" required class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
                         <option value="">-- Pilih Warga --</option>
-                        <?php foreach ($daftar_iuran as $item): ?>
-                            <option value="<?= $item['id']; ?>">Blok <?= htmlspecialchars($item['blok']); ?> - <?= htmlspecialchars($item['nama']); ?> <?= $item['kalkulasi']['is_kosong'] ? '(Kosong)' : ''; ?></option>
+                        <?php foreach ($semua_pilihan_iuran as $item): 
+                            $is_kosong_item = (isset($item['kalkulasi']) ? $item['kalkulasi']['is_kosong'] : (strtolower(trim($item['keterangan'] ?? '')) === 'kosong'));
+                        ?>
+                            <option value="<?= $item['id']; ?>">Blok <?= htmlspecialchars($item['blok']); ?> - <?= htmlspecialchars($item['nama']); ?> <?= $is_kosong_item ? '(Kosong)' : ''; ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>

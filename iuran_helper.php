@@ -475,3 +475,85 @@ if (!function_exists('catat_pembayaran_iuran')) {
         return true;
     }
 }
+
+if (!function_exists('compare_blok_natural')) {
+    /**
+     * Membandingkan dua string blok rumah warga secara natural (A sampai Z, 1 sampai 999, suffix A/B/dst).
+     * Contoh urutan: A1, A2, A10, B1, I12, I12B, J1, J2, J10, K1, dst.
+     *
+     * @param string $blok_a
+     * @param string $blok_b
+     * @return int
+     */
+    function compare_blok_natural($blok_a, $blok_b) {
+        $clean_a = trim(preg_replace('/^blok\s+/i', '', (string)$blok_a));
+        $clean_b = trim(preg_replace('/^blok\s+/i', '', (string)$blok_b));
+        return strnatcasecmp($clean_a, $clean_b);
+    }
+}
+
+if (!function_exists('sort_warga_by_blok')) {
+    /**
+     * Mengurutkan array data warga secara natural berdasarkan blok rumah dari A sampai Z.
+     * Jika dalam satu blok/rumah terdapat beberapa anggota keluarga, diurutkan Kepala Keluarga -> Istri -> Anak.
+     *
+     * @param array &$daftar_warga
+     * @param string $kolom_blok
+     */
+    function sort_warga_by_blok(&$daftar_warga, $kolom_blok = 'alamat_rt') {
+        if (!is_array($daftar_warga)) return;
+
+        $order_hubungan = [
+            'suami (kepala rumah tangga)' => 1,
+            'janda (kepala rumah tangga)' => 1,
+            'kepala keluarga' => 1,
+            'kepala rumah tangga' => 1,
+            'istri (mengurus rumah tangga)' => 2,
+            'istri' => 2,
+            'anak' => 3,
+            'janda (anggota keluarga)' => 4,
+            'lainnya' => 5
+        ];
+
+        usort($daftar_warga, function($a, $b) use ($kolom_blok, $order_hubungan) {
+            $cmp = compare_blok_natural($a[$kolom_blok] ?? '', $b[$kolom_blok] ?? '');
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+
+            // Jika blok sama, urutkan berdasarkan hierarki keluarga
+            $hub_a = strtolower(trim($a['hubungan_keluarga'] ?? ''));
+            $hub_b = strtolower(trim($b['hubungan_keluarga'] ?? ''));
+
+            $oa = $order_hubungan[$hub_a] ?? 99;
+            $ob = $order_hubungan[$hub_b] ?? 99;
+
+            if ($oa !== $ob) {
+                return $oa - $ob;
+            }
+
+            // Jika peran sama, urutkan berdasarkan nama
+            return strcasecmp($a['nama'] ?? '', $b['nama'] ?? '');
+        });
+    }
+}
+
+if (!function_exists('sort_iuran_by_blok')) {
+    /**
+     * Mengurutkan array data rekap iuran kavling warga secara natural berdasarkan blok dari A sampai Z.
+     *
+     * @param array &$daftar_iuran
+     * @param string $kolom_blok
+     */
+    function sort_iuran_by_blok(&$daftar_iuran, $kolom_blok = 'blok') {
+        if (!is_array($daftar_iuran)) return;
+
+        usort($daftar_iuran, function($a, $b) use ($kolom_blok) {
+            $cmp = compare_blok_natural($a[$kolom_blok] ?? '', $b[$kolom_blok] ?? '');
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+            return strcasecmp($a['nama'] ?? '', $b['nama'] ?? '');
+        });
+    }
+}
