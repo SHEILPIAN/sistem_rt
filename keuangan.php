@@ -142,6 +142,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $can_manage) {
             }
         }
     }
+
+    // 6. Update Cepat Kekurangan Iuran Bulan Lalu (Des 2025)
+    elseif ($action === 'update_tunggakan') {
+        $id_iuran  = (int)($_POST['id'] ?? 0);
+        $tunggakan = (int)($_POST['tunggakan_bulan_lalu'] ?? 0);
+
+        if ($id_iuran > 0) {
+            $update_sql = "UPDATE iuran_warga SET tunggakan_bulan_lalu = $tunggakan WHERE id = $id_iuran";
+            if (mysqli_query($conn, $update_sql)) {
+                $pesan_sukses = "Kekurangan iuran s/d Des " . ($tahun_aktif - 1) . " berhasil disimpan. Rumus total yang harus dibayar dan kekurangan uang s/d Des $tahun_aktif telah dihitung otomatis.";
+            } else {
+                $pesan_error = "Gagal memperbarui kekurangan iuran: " . mysqli_error($conn);
+            }
+        } else {
+            $pesan_error = "Data iuran tidak ditemukan.";
+        }
+    }
 }
 
 // ==========================================
@@ -624,7 +641,12 @@ $bulan_labels = [
                             <th rowspan="2" class="p-2 border border-yellow-600 w-10">NO</th>
                             <th rowspan="2" class="p-2 border border-yellow-600 w-16">BLOK</th>
                             <th rowspan="2" class="p-2 border border-yellow-600 min-w-[220px]">NAMA KEPALA KELUARGA</th>
-                            <th rowspan="2" class="p-2 border border-yellow-600 max-w-[130px] leading-tight">Jumlah Kekurangan Iuran dalam bulan - s/d bulan Des <?= $tahun_aktif - 1; ?></th>
+                            <th rowspan="2" class="p-2 border border-yellow-600 max-w-[130px] leading-tight">
+                                Jumlah Kekurangan Iuran dalam bulan - s/d bulan Des <?= $tahun_aktif - 1; ?>
+                                <?php if ($can_manage): ?>
+                                    <span class="block text-[9px] font-normal text-yellow-900 mt-1 opacity-80"><i class="fa-solid fa-pen-to-square"></i> Klik untuk input/edit</span>
+                                <?php endif; ?>
+                            </th>
                             <th rowspan="2" class="p-2 border border-yellow-600 max-w-[140px] leading-tight">Jumlah Kekurangan Iuran dalam uang - s/d bulan Des <?= $tahun_aktif - 1; ?></th>
                             <th rowspan="2" class="p-2 border border-yellow-600 max-w-[130px] leading-tight">Jumlah Kekurangan Iuran dalam bulan - s/d bulan Des <?= $tahun_aktif; ?></th>
                             <th rowspan="2" class="p-2 border border-yellow-600 max-w-[140px] leading-tight">Jumlah yang harus dibayar - s/d bulan Des <?= $tahun_aktif; ?></th>
@@ -675,7 +697,7 @@ $bulan_labels = [
                                     <div class="flex items-center justify-between">
                                         <span><?= htmlspecialchars($row['nama']); ?></span>
                                         <?php if ($k['is_kosong']): ?>
-                                            <span class="ml-1 text-[10px] bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">Kosong</span>
+                                             <span class="ml-1 text-[10px] bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">Kosong</span>
                                         <?php endif; ?>
                                     </div>
                                     <?php if ($can_view_nik && !empty($row['nik'])): ?>
@@ -685,7 +707,17 @@ $bulan_labels = [
 
                                 <!-- Tunggakan Bulan 2025 -->
                                 <td class="p-2 border border-gray-300 text-center font-mono">
-                                    <?= $k['is_kosong'] ? '-' : ($k['tunggakan_bulan_2025'] == 0 ? '-' : $k['tunggakan_bulan_2025']); ?>
+                                    <?php if ($can_manage && !$k['is_kosong']): ?>
+                                        <button type="button" 
+                                                onclick='bukaModalEditTunggakan(<?= json_encode($row); ?>)' 
+                                                class="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-lg bg-yellow-100 hover:bg-yellow-200 text-blue-950 font-bold border border-yellow-300 shadow-sm hover:shadow transition group" 
+                                                title="Klik untuk input atau edit kekurangan iuran s/d Des <?= $tahun_aktif - 1; ?>">
+                                            <span><?= (int)$row['tunggakan_bulan_lalu']; ?></span>
+                                            <i class="fa-solid fa-pen-to-square text-[10px] text-amber-700 opacity-60 group-hover:opacity-100"></i>
+                                        </button>
+                                    <?php else: ?>
+                                        <?= $k['is_kosong'] ? '-' : ($k['tunggakan_bulan_2025'] == 0 ? '-' : $k['tunggakan_bulan_2025']); ?>
+                                    <?php endif; ?>
                                 </td>
 
                                 <!-- Tunggakan Uang 2025 -->
@@ -1210,7 +1242,22 @@ $bulan_labels = [
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1">Tunggakan Lalu (Bulan)</label>
-                        <input type="number" name="tunggakan_bulan_lalu" value="0" placeholder="0 atau minus" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        <input type="number" id="tambah_warga_tunggakan" name="tunggakan_bulan_lalu" value="0" oninput="hitungPreviewTambahWarga()" placeholder="0 atau minus" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono">
+                    </div>
+                </div>
+
+                <!-- Preview Rumus Tambah Warga -->
+                <div class="bg-gray-900 text-white p-3 rounded-xl text-xs space-y-1">
+                    <div class="text-yellow-400 font-bold flex items-center gap-1 text-[11px]">
+                        <i class="fa-solid fa-calculator"></i> Perhitungan Otomatis Sesuai Rumus:
+                    </div>
+                    <div class="flex justify-between text-gray-300">
+                        <span>Total Harus Dibayar (Des <?= $tahun_aktif; ?>):</span>
+                        <span id="preview_tambah_harus_bayar" class="font-mono font-bold text-yellow-300">-Rp 240.000</span>
+                    </div>
+                    <div class="flex justify-between text-gray-300">
+                        <span>Kekurangan Uang s/d Des <?= $tahun_aktif; ?>:</span>
+                        <span id="preview_tambah_sisa_kurang" class="font-mono font-bold text-red-300">-Rp 240.000</span>
                     </div>
                 </div>
 
@@ -1256,7 +1303,22 @@ $bulan_labels = [
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1">Tunggakan s/d Des <?= $tahun_aktif - 1; ?> (Bulan)</label>
-                        <input type="number" id="edit_warga_tunggakan" name="tunggakan_bulan_lalu" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                        <input type="number" id="edit_warga_tunggakan" name="tunggakan_bulan_lalu" oninput="hitungPreviewEditWarga()" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none font-mono">
+                    </div>
+                </div>
+
+                <!-- Preview Rumus Edit Warga -->
+                <div class="bg-gray-900 text-white p-3 rounded-xl text-xs space-y-1">
+                    <div class="text-yellow-400 font-bold flex items-center gap-1 text-[11px]">
+                        <i class="fa-solid fa-calculator"></i> Perhitungan Otomatis Sesuai Rumus:
+                    </div>
+                    <div class="flex justify-between text-gray-300">
+                        <span>Total Harus Dibayar (Des <?= $tahun_aktif; ?>):</span>
+                        <span id="preview_edit_harus_bayar" class="font-mono font-bold text-yellow-300">-</span>
+                    </div>
+                    <div class="flex justify-between text-gray-300">
+                        <span>Kekurangan Uang s/d Des <?= $tahun_aktif; ?>:</span>
+                        <span id="preview_edit_sisa_kurang" class="font-mono font-bold text-red-300">-</span>
                     </div>
                 </div>
 
@@ -1279,6 +1341,150 @@ $bulan_labels = [
                 <div class="flex gap-2 pt-2">
                     <button type="button" onclick="tutupModalEditWarga()" class="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-sm transition">Batal</button>
                     <button type="submit" class="w-1/2 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm shadow-md transition">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 4B: EDIT KEKURANGAN IURAN DES 2025   -->
+    <!-- ========================================== -->
+    <div id="modalEditTunggakan" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <!-- Header Modal -->
+            <div class="flex justify-between items-center pb-3 border-b border-gray-200">
+                <h3 class="font-bold text-gray-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-calculator text-amber-600"></i> Input / Edit Kekurangan Iuran (Des <?= $tahun_aktif - 1; ?>)
+                </h3>
+                <button type="button" onclick="tutupModalEditTunggakan()" class="text-gray-400 hover:text-gray-700 text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form method="POST" action="keuangan.php?tab=iuran&tahun=<?= $tahun_aktif; ?>" class="mt-4 space-y-4">
+                <input type="hidden" name="action" value="update_tunggakan">
+                <input type="hidden" id="tunggakan_modal_id" name="id" value="">
+
+                <!-- Info Warga & Blok -->
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 flex justify-between items-center">
+                    <div>
+                        <span class="text-[11px] text-amber-800 font-semibold block uppercase tracking-wider">Kavling & Kepala Keluarga:</span>
+                        <span id="tunggakan_modal_nama_label" class="font-bold text-sm text-gray-900">Blok -</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[10px] text-gray-500 block">Tarif Bulanan Aktif</span>
+                        <span class="text-xs font-bold font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">Rp <?= number_format($tarif_bulanan, 0, ',', '.'); ?>/bln</span>
+                    </div>
+                </div>
+
+                <!-- Pemilih Status Cepat: Kurang / Lunas / Lebih -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1.5">Pilih Kategori Status:</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" id="btn_status_kurang" onclick="setTipeTunggakan('kurang')" class="py-2 px-2 text-xs font-bold rounded-xl border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 flex items-center justify-center gap-1 transition">
+                            <i class="fa-solid fa-circle-minus"></i> Kurang Bayar (-)
+                        </button>
+                        <button type="button" id="btn_status_lunas" onclick="setTipeTunggakan('lunas')" class="py-2 px-2 text-xs font-bold rounded-xl border border-green-300 bg-green-50 text-green-700 hover:bg-green-100 flex items-center justify-center gap-1 transition">
+                            <i class="fa-solid fa-circle-check"></i> Lunas (0)
+                        </button>
+                        <button type="button" id="btn_status_lebih" onclick="setTipeTunggakan('lebih')" class="py-2 px-2 text-xs font-bold rounded-xl border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 flex items-center justify-center gap-1 transition">
+                            <i class="fa-solid fa-circle-plus"></i> Lebih Bayar (+)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Input Angka Bulan -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs font-bold text-gray-700">Jumlah Kekurangan (dalam Bulan) <span class="text-red-500">*</span></label>
+                        <span id="tunggakan_modal_indicator" class="text-[11px] font-bold font-mono text-red-600 bg-red-50 px-2.5 py-0.5 rounded-full border border-red-200">
+                            -0 Bulan
+                        </span>
+                    </div>
+                    <div class="relative">
+                        <input type="number" 
+                               id="tunggakan_modal_input" 
+                               name="tunggakan_bulan_lalu" 
+                               required 
+                               oninput="hitungOtomatisRumusTunggakan()" 
+                               placeholder="Contoh: -12 jika kurang 12 bulan" 
+                               class="w-full border-2 border-amber-400 rounded-xl px-4 py-2.5 text-base font-bold font-mono text-gray-900 focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                    </div>
+                    
+                    <!-- Tombol Shortcut Preset Cepat -->
+                    <div class="flex flex-wrap gap-1.5 mt-2 items-center">
+                        <span class="text-[10px] text-gray-400 font-semibold">Preset Cepat:</span>
+                        <button type="button" onclick="setPresetTunggakan(0)" class="text-[11px] px-2.5 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-mono font-bold border border-gray-200">0 (Lunas)</button>
+                        <button type="button" onclick="setPresetTunggakan(-6)" class="text-[11px] px-2.5 py-0.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-mono font-bold border border-red-200">-6 bln</button>
+                        <button type="button" onclick="setPresetTunggakan(-12)" class="text-[11px] px-2.5 py-0.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-mono font-bold border border-red-200">-12 bln</button>
+                        <button type="button" onclick="setPresetTunggakan(-24)" class="text-[11px] px-2.5 py-0.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-mono font-bold border border-red-200">-24 bln</button>
+                        <button type="button" onclick="setPresetTunggakan(-36)" class="text-[11px] px-2.5 py-0.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-mono font-bold border border-red-200">-36 bln</button>
+                        <button type="button" onclick="setPresetTunggakan(-60)" class="text-[11px] px-2.5 py-0.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-mono font-bold border border-red-200">-60 bln</button>
+                    </div>
+                </div>
+
+                <!-- KOTAK RUMUS PERHITUNGAN OTOMATIS REAL-TIME -->
+                <div class="bg-gray-900 text-white rounded-2xl p-4 space-y-2.5 shadow-xl text-xs border border-gray-800">
+                    <div class="flex items-center justify-between border-b border-gray-700 pb-2">
+                        <span class="font-bold text-yellow-400 flex items-center gap-1.5 text-xs">
+                            <i class="fa-solid fa-square-root-variable"></i> RUMUS PERHITUNGAN OTOMATIS
+                        </span>
+                        <span class="text-[10px] text-gray-400 font-mono">Tahun <?= $tahun_aktif; ?></span>
+                    </div>
+
+                    <!-- Step 1: Kekurangan Uang Des 2025 -->
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-300">1. Kekurangan Uang s/d Des <?= $tahun_aktif - 1; ?>:</span>
+                        <span id="calc_uang_lalu" class="font-mono font-bold text-yellow-300 text-sm">Rp 0</span>
+                    </div>
+                    <div class="text-[10px] text-gray-400 -mt-1 font-mono" id="calc_uang_lalu_detail">
+                        (0 bln × Rp <?= number_format($tarif_bulanan, 0, ',', '.'); ?>)
+                    </div>
+
+                    <!-- Step 2: Kewajiban Bulan Des 2026 -->
+                    <div class="flex justify-between items-center pt-1.5 border-t border-gray-800">
+                        <span class="text-gray-300">2. Kewajiban Bulan s/d Des <?= $tahun_aktif; ?>:</span>
+                        <span id="calc_kewajiban_bulan" class="font-mono font-bold text-blue-300 text-sm">-12 Bulan</span>
+                    </div>
+                    <div class="text-[10px] text-gray-400 -mt-1 font-mono" id="calc_kewajiban_bulan_detail">
+                        (Tunggakan 0 bln - 12 bln tahun berjalan)
+                    </div>
+
+                    <!-- Step 3: Total Jumlah yang Harus Dibayar Des 2026 -->
+                    <div class="p-2.5 bg-gray-800/80 rounded-xl border border-yellow-500/40">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-yellow-400">3. Total Jumlah yang Harus Dibayar:</span>
+                            <span id="calc_harus_bayar" class="font-mono font-bold text-base text-yellow-300">-Rp 240.000</span>
+                        </div>
+                        <div class="text-[10px] text-gray-400 font-mono mt-0.5" id="calc_harus_bayar_detail">
+                            (-12 bln × Rp <?= number_format($tarif_bulanan, 0, ',', '.'); ?>)
+                        </div>
+                    </div>
+
+                    <!-- Info Setoran Masuk 2026 -->
+                    <div class="flex justify-between items-center text-gray-400 pt-0.5 px-1">
+                        <span>Total Setoran Masuk di <?= $tahun_aktif; ?> (Jan - Des):</span>
+                        <span id="calc_total_bayar_2026" class="font-mono font-semibold text-emerald-400">+Rp 0</span>
+                    </div>
+
+                    <!-- Step 4: Jumlah Kekurangan Iuran dalam Uang s/d Des 2026 -->
+                    <div class="p-3 bg-gradient-to-r from-red-950/70 to-yellow-950/70 rounded-xl border border-red-700/60 shadow">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <span class="font-bold text-white block">4. Jumlah Kekurangan Uang (s/d Des <?= $tahun_aktif; ?>):</span>
+                                <span class="text-[10px] text-gray-300 font-mono" id="calc_sisa_kurang_detail">(Total Harus Dibayar + Setoran)</span>
+                            </div>
+                            <span id="calc_sisa_kurang" class="font-mono font-bold text-lg text-red-400">-Rp 240.000</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tombol Batal & Simpan -->
+                <div class="flex gap-2.5 pt-2">
+                    <button type="button" onclick="tutupModalEditTunggakan()" class="w-1/3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-sm transition">
+                        Batal
+                    </button>
+                    <button type="submit" class="w-2/3 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm shadow-md flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-check"></i> Simpan & Perbarui Rekap
+                    </button>
                 </div>
             </form>
         </div>
@@ -1373,6 +1579,17 @@ $bulan_labels = [
 
     <!-- SCRIPT INTERAKSI MODAL -->
     <script>
+        var activeRowForTunggakan = null;
+        var activeRowForEditWarga = null;
+        var tarifBulananAktif = <?= (float)$tarif_bulanan; ?>;
+
+        function formatRupiah(num) {
+            var isMinus = num < 0;
+            var abs = Math.abs(Math.round(num));
+            var formatted = abs.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            return (isMinus ? "-Rp " : "Rp ") + formatted;
+        }
+
         function bukaModalBayar() {
             document.getElementById('modalBayar').classList.remove('hidden');
         }
@@ -1394,22 +1611,204 @@ $bulan_labels = [
 
         function bukaModalTambahWarga() {
             document.getElementById('modalTambahWarga').classList.remove('hidden');
+            hitungPreviewTambahWarga();
         }
         function tutupModalTambahWarga() {
             document.getElementById('modalTambahWarga').classList.add('hidden');
         }
 
         function bukaModalEditWarga(row) {
+            activeRowForEditWarga = row;
             document.getElementById('edit_warga_id').value = row.id;
             document.getElementById('edit_warga_blok').value = row.blok;
             document.getElementById('edit_warga_nama').value = row.nama;
             document.getElementById('edit_warga_nik').value = row.nik || '';
             document.getElementById('edit_warga_tunggakan').value = row.tunggakan_bulan_lalu;
             document.getElementById('edit_warga_keterangan').value = row.keterangan || '';
+            hitungPreviewEditWarga();
             document.getElementById('modalEditWarga').classList.remove('hidden');
         }
         function tutupModalEditWarga() {
             document.getElementById('modalEditWarga').classList.add('hidden');
+            activeRowForEditWarga = null;
+        }
+
+        // ==========================================
+        // HANDLER MODAL EDIT TUNGGAKAN DES 2025
+        // ==========================================
+        function bukaModalEditTunggakan(row) {
+            activeRowForTunggakan = row;
+            document.getElementById('tunggakan_modal_id').value = row.id;
+            document.getElementById('tunggakan_modal_nama_label').textContent = 'Blok ' + (row.blok || '') + ' - ' + (row.nama || '');
+            
+            var val = parseInt(row.tunggakan_bulan_lalu, 10);
+            if (isNaN(val)) val = 0;
+            
+            document.getElementById('tunggakan_modal_input').value = val;
+            hitungOtomatisRumusTunggakan();
+            
+            var modal = document.getElementById('modalEditTunggakan');
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+        }
+
+        function tutupModalEditTunggakan() {
+            var modal = document.getElementById('modalEditTunggakan');
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+            activeRowForTunggakan = null;
+        }
+
+        function setTipeTunggakan(tipe) {
+            var input = document.getElementById('tunggakan_modal_input');
+            var val = parseInt(input.value, 10);
+            if (isNaN(val)) val = 0;
+            
+            if (tipe === 'kurang') {
+                if (val >= 0) val = (val === 0) ? -12 : -Math.abs(val);
+            } else if (tipe === 'lunas') {
+                val = 0;
+            } else if (tipe === 'lebih') {
+                if (val <= 0) val = (val === 0) ? 1 : Math.abs(val);
+            }
+            input.value = val;
+            hitungOtomatisRumusTunggakan();
+        }
+
+        function setPresetTunggakan(val) {
+            document.getElementById('tunggakan_modal_input').value = val;
+            hitungOtomatisRumusTunggakan();
+        }
+
+        function updateTipeTunggakanUI(val) {
+            var btnKurang = document.getElementById('btn_status_kurang');
+            var btnLunas  = document.getElementById('btn_status_lunas');
+            var btnLebih  = document.getElementById('btn_status_lebih');
+            if (!btnKurang || !btnLunas || !btnLebih) return;
+            
+            btnKurang.className = "py-2 px-2 text-xs font-bold rounded-xl border flex items-center justify-center gap-1 transition " + 
+                (val < 0 ? "border-red-500 bg-red-600 text-white shadow-sm" : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100");
+            btnLunas.className = "py-2 px-2 text-xs font-bold rounded-xl border flex items-center justify-center gap-1 transition " + 
+                (val === 0 ? "border-green-500 bg-green-600 text-white shadow-sm" : "border-green-200 bg-green-50 text-green-700 hover:bg-green-100");
+            btnLebih.className = "py-2 px-2 text-xs font-bold rounded-xl border flex items-center justify-center gap-1 transition " + 
+                (val > 0 ? "border-blue-500 bg-blue-600 text-white shadow-sm" : "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100");
+        }
+
+        function hitungOtomatisRumusTunggakan() {
+            var rawInput = document.getElementById('tunggakan_modal_input').value;
+            var bulan = parseInt(rawInput, 10);
+            if (isNaN(bulan)) bulan = 0;
+            
+            updateTipeTunggakanUI(bulan);
+            
+            var blok = activeRowForTunggakan ? (activeRowForTunggakan.blok || '').trim() : '';
+            var totalBayar2026 = 0;
+            if (activeRowForTunggakan) {
+                var months = ['jan','feb','mar','apr','mei','jun','jul','agt','sep','okt','nop','des'];
+                months.forEach(function(m) {
+                    totalBayar2026 += parseFloat(activeRowForTunggakan[m] || 0);
+                });
+            }
+            
+            // Rumus 1: Kekurangan Uang Des 2025
+            var uangLalu = bulan * tarifBulananAktif;
+            
+            // Rumus 2 & 3: Kewajiban Bulan 2026 & Total yang Harus Dibayar
+            var kewajibanBulan2026 = 0;
+            var harusBayar2026 = 0;
+            
+            if (blok === 'J20') {
+                kewajibanBulan2026 = bulan;
+                harusBayar2026 = uangLalu;
+            } else if (blok === 'L12') {
+                kewajibanBulan2026 = 0;
+                harusBayar2026 = 0;
+            } else {
+                kewajibanBulan2026 = bulan - 12;
+                harusBayar2026 = kewajibanBulan2026 * tarifBulananAktif;
+            }
+            
+            // Rumus 4: Jumlah Kekurangan Iuran dalam Uang s/d Des 2026
+            var sisaKurang2026 = harusBayar2026 + totalBayar2026;
+            
+            // Update UI elements
+            document.getElementById('calc_uang_lalu').textContent = formatRupiah(uangLalu);
+            document.getElementById('calc_uang_lalu_detail').textContent = '(' + bulan + ' bln × Rp ' + tarifBulananAktif.toLocaleString('id-ID') + ')';
+            
+            document.getElementById('calc_kewajiban_bulan').textContent = (kewajibanBulan2026 > 0 ? '+' : '') + kewajibanBulan2026 + ' Bulan';
+            document.getElementById('calc_kewajiban_bulan_detail').textContent = '(' + bulan + ' bln - 12 bln tahun berjalan)';
+            
+            document.getElementById('calc_harus_bayar').textContent = formatRupiah(harusBayar2026);
+            document.getElementById('calc_harus_bayar_detail').textContent = '(' + kewajibanBulan2026 + ' bln × Rp ' + tarifBulananAktif.toLocaleString('id-ID') + ')';
+            
+            document.getElementById('calc_total_bayar_2026').textContent = '+ ' + formatRupiah(totalBayar2026);
+            
+            var sisaEl = document.getElementById('calc_sisa_kurang');
+            sisaEl.textContent = formatRupiah(sisaKurang2026);
+            if (sisaKurang2026 < 0) {
+                sisaEl.className = "font-mono font-bold text-lg text-red-400";
+                document.getElementById('calc_sisa_kurang_detail').textContent = '(Harus dibayar ' + formatRupiah(harusBayar2026) + ' + Setoran ' + formatRupiah(totalBayar2026) + ' -> Kurang Bayar)';
+            } else if (sisaKurang2026 === 0) {
+                sisaEl.className = "font-mono font-bold text-lg text-emerald-400";
+                document.getElementById('calc_sisa_kurang_detail').textContent = '(Lunas - Tidak ada kekurangan)';
+            } else {
+                sisaEl.className = "font-mono font-bold text-lg text-blue-400";
+                document.getElementById('calc_sisa_kurang_detail').textContent = '(Lebih Bayar s/d akhir tahun)';
+            }
+            
+            var indEl = document.getElementById('tunggakan_modal_indicator');
+            if (bulan < 0) {
+                indEl.textContent = bulan + ' Bulan (Kurang Bayar)';
+                indEl.className = 'text-[11px] font-bold font-mono text-red-600 bg-red-50 px-2.5 py-0.5 rounded-full border border-red-200';
+            } else if (bulan === 0) {
+                indEl.textContent = '0 Bulan (Lunas)';
+                indEl.className = 'text-[11px] font-bold font-mono text-green-700 bg-green-50 px-2.5 py-0.5 rounded-full border border-green-200';
+            } else {
+                indEl.textContent = '+' + bulan + ' Bulan (Lebih Bayar)';
+                indEl.className = 'text-[11px] font-bold font-mono text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200';
+            }
+        }
+
+        // ==========================================
+        // HANDLER PREVIEW EDIT & TAMBAH WARGA
+        // ==========================================
+        function hitungPreviewEditWarga() {
+            var raw = document.getElementById('edit_warga_tunggakan').value;
+            var bulan = parseInt(raw, 10);
+            if (isNaN(bulan)) bulan = 0;
+            
+            var blok = (document.getElementById('edit_warga_blok').value || '').trim();
+            var totalBayar = 0;
+            if (activeRowForEditWarga) {
+                var months = ['jan','feb','mar','apr','mei','jun','jul','agt','sep','okt','nop','des'];
+                months.forEach(function(m) {
+                    totalBayar += parseFloat(activeRowForEditWarga[m] || 0);
+                });
+            }
+            
+            var kewajiban = (blok === 'J20') ? bulan : (blok === 'L12' ? 0 : (bulan - 12));
+            var harusBayar = (blok === 'L12') ? 0 : (kewajiban * tarifBulananAktif);
+            var sisaKurang = harusBayar + totalBayar;
+            
+            document.getElementById('preview_edit_harus_bayar').textContent = formatRupiah(harusBayar);
+            var elSisa = document.getElementById('preview_edit_sisa_kurang');
+            elSisa.textContent = formatRupiah(sisaKurang);
+            elSisa.className = "font-mono font-bold " + (sisaKurang < 0 ? "text-red-300" : (sisaKurang === 0 ? "text-emerald-300" : "text-blue-300"));
+        }
+
+        function hitungPreviewTambahWarga() {
+            var raw = document.getElementById('tambah_warga_tunggakan').value;
+            var bulan = parseInt(raw, 10);
+            if (isNaN(bulan)) bulan = 0;
+            
+            var kewajiban = bulan - 12;
+            var harusBayar = kewajiban * tarifBulananAktif;
+            var sisaKurang = harusBayar;
+            
+            document.getElementById('preview_tambah_harus_bayar').textContent = formatRupiah(harusBayar);
+            var elSisa = document.getElementById('preview_tambah_sisa_kurang');
+            elSisa.textContent = formatRupiah(sisaKurang);
+            elSisa.className = "font-mono font-bold " + (sisaKurang < 0 ? "text-red-300" : (sisaKurang === 0 ? "text-emerald-300" : "text-blue-300"));
         }
 
         function bukaModalQRIS() {
